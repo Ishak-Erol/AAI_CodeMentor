@@ -1,0 +1,15 @@
+{
+  "expected_primary_issue": "testing",
+  "required_feedback_terms": [
+    "Guiding questions",
+    "tests/test_review_parser.py",
+    "https://docs.pytest.org",
+    "Copilot comments classified"
+  ],
+  "expected_learning_concepts": [
+    "pytest fixtures",
+    "mypy Optional handling",
+    "triaging Copilot review comments"
+  ],
+  "requires_testat_suggestion": true
+}

@@ -1,0 +1,17 @@
+{
+  "ruff": [
+    {
+      "file": "src/review_parser.py",
+      "line": 22,
+      "code": "B904",
+      "message": "Within an except clause, raise exceptions with 'raise ... from err' or 'raise ... from None'."
+    }
+  ],
+  "pytest": [
+    {
+      "test": "tests/test_review_parser.py::test_missing_tests_defaults_to_empty_list",
+      "message": "TypeError: object of type 'NoneType' has no len()",
+      "traceback": "summary = parse_review_payload({'title': 'PR'}) -> len(tests)"
+    }
+  ]
+}

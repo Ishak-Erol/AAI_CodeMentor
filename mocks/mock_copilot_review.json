@@ -1,0 +1,28 @@
+{
+  "comments": [
+    {
+      "file": "src/review_parser.py",
+      "line": 34,
+      "comment": "payload.get('tests') can return None; the type warning suggests this path can fail at runtime.",
+      "severity": "high"
+    },
+    {
+      "file": "tests/test_review_parser.py",
+      "line": 18,
+      "comment": "Add a regression test for the missing tests key so the parser behavior is covered.",
+      "severity": "medium"
+    },
+    {
+      "file": "src/review_summary.py",
+      "line": 8,
+      "comment": "The new annotation_count field is readable, but make sure parser and model responsibilities stay clear.",
+      "severity": "low"
+    },
+    {
+      "file": "src/review_parser.py",
+      "line": 20,
+      "comment": "Consider whether the exception handling keeps enough context for debugging.",
+      "severity": "medium"
+    }
+  ]
+}

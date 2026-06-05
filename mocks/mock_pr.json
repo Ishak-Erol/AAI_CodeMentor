@@ -1,0 +1,34 @@
+{
+  "metadata": {
+    "id": 42,
+    "title": "Improve review payload parsing",
+    "description": "Adds support for optional review summaries and CI annotations in incoming review payloads.",
+    "author": "junior-dev",
+    "source_branch": "feature/review-parser-hardening",
+    "target_branch": "main"
+  },
+  "learning_context": {
+    "threads_reviewed": 2,
+    "previous_topics": [
+      "basic pytest assertions",
+      "reading CI logs"
+    ]
+  },
+  "changed_files": [
+    {
+      "path": "src/review_parser.py",
+      "status": "modified",
+      "diff": "@@ def parse_review_payload(payload: dict) -> ReviewSummary:\\n-    tests = payload.get('tests', [])\\n+    tests = payload.get('tests')\\n     return ReviewSummary(\\n         title=payload['title'],\\n         test_count=len(tests),\\n     )"
+    },
+    {
+      "path": "tests/test_review_parser.py",
+      "status": "modified",
+      "diff": "@@ def test_payload_with_tests_counts_entries():\\n     summary = parse_review_payload({'title': 'PR', 'tests': ['unit']})\\n     assert summary.test_count == 1\\n+\\n+def test_payload_with_annotations_keeps_title():\\n+    summary = parse_review_payload({'title': 'PR', 'annotations': []})\\n+    assert summary.title == 'PR'"
+    },
+    {
+      "path": "src/review_summary.py",
+      "status": "modified",
+      "diff": "@@ class ReviewSummary(BaseModel):\\n     title: str\\n     test_count: int\\n+    annotation_count: int = 0"
+    }
+  ]
+}
