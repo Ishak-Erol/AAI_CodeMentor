@@ -1,3 +1,5 @@
 deploy.md
 plan.md
 .env
+*.bin
+*.sqlite3
