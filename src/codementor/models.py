@@ -19,7 +19,6 @@ class ReflectionDecision(BaseModel):
 
     primary_issue: PrimaryIssue
     severity: Severity
-    needs_copilot_analysis: bool
     next_agent: NextAgent
 
 
@@ -46,7 +45,6 @@ class LearningPoint(BaseModel):
 DEFAULT_REFLECTION_DECISION = ReflectionDecision(
     primary_issue="code_quality",
     severity="medium",
-    needs_copilot_analysis=False,
     next_agent="dev_mentor",
 )
 

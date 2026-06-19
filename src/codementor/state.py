@@ -11,6 +11,7 @@ class ReviewState(TypedDict):
     reflection_decision: str
     mentor_feedback: str
     learning_points: list[dict[str, Any]]
+    structured_insights: list[dict[str, Any]]
 
 
 def create_initial_state(

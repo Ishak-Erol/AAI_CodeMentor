@@ -5,6 +5,7 @@ from typing import cast
 
 from langgraph.graph import END, StateGraph
 
+from codementor.agents.context_processor import analyze_context
 from codementor.agents.dev_mentor import dev_mentor_agent_node
 from codementor.agents.learning import learning_agent_node
 from codementor.agents.reflection import reflection_agent_node
@@ -19,6 +20,9 @@ def orchestrator_node(state: ReviewState) -> ReviewState:
     updated.setdefault("mentor_feedback", "")
     updated.setdefault("learning_points", [])
     updated.setdefault("copilot_comments", [])
+    # 2. Sprint 3 Analyse-Logik direkt beim Start
+    # Damit haben alle nachfolgenden Nodes die Erkenntnisse vorliegen
+    updated["structured_insights"] = analyze_context(updated)
     return cast(ReviewState, updated)
 
 

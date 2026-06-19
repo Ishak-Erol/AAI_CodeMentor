@@ -112,7 +112,7 @@ def run_github(
         )
     state = create_initial_state(pr_data, ci_findings, copilot_comments, rag_context)
     graph = build_review_graph(llm=llm_client)
-    final_state = graph.invoke(state)
+    final_state = graph.invoke(state) # graph wird komplett ausgeführt
     return dict(final_state)
 
 
@@ -175,7 +175,9 @@ def main() -> int:
         except GitHubClientError as exc:
             print(f"GitHub error: {exc}")
             return 2
-    decision = parse_reflection_decision(final_state["reflection_decision"])
+    
+    decision = parse_reflection_decision(final_state["reflection_decision"]) # ergebnis von reflection agent
+    # learning points sind array 
     learning_points = final_state.get("learning_points", [])
 
     mode_label = "mock" if args.mode == "mock" else "github"
@@ -188,6 +190,8 @@ def main() -> int:
     )
     print("FINAL_STATE_JSON:")
     print(json.dumps(final_state, indent=2, ensure_ascii=False, default=_json_default))
+    with open("last_run.json", "w", encoding="utf-8") as f:
+        json.dump(final_state, f, indent=2, ensure_ascii=False, default=_json_default)
     return 0
 
 

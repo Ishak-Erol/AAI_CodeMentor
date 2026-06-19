@@ -80,21 +80,36 @@ def build_dev_mentor_prompt(
     decision: ReflectionDecision,
     classified_comments: list[ClassifiedCopilotComment],
 ) -> str:
+    # 1. RAG Kontext sicher extrahieren und für das LLM lesbar machen
+    rag_data = state.get("rag_context", [])
+    rag_summary = "\n".join([f"- {d['text']}" for d in rag_data]) if rag_data else "Kein zusätzlicher Kontext verfügbar."
+    
     payload = {
         "reflection_decision": decision.model_dump(),
         "changed_files": state["pr_data"].get("changed_files", []),
         "ci_findings": state["ci_findings"],
-        "rag_context": state.get("rag_context", []),
+        # Wir übergeben die zusammengefasste Summary, damit das Prompt-Token-Limit geschont wird
+        "rag_summary": rag_summary, 
         "classified_copilot_comments": [
             comment.model_dump() for comment in classified_comments
         ],
+        "structured_insights": state.get("structured_insights", {})
     }
+    
     return (
-        "AGENT: dev_mentor\n"
-        "Create Socratic learning-oriented review feedback. Do not provide a full patch.\n"
-        f"CONTEXT:\n{json.dumps(payload, sort_keys=True)}"
+f"Du bist ein geduldiger Mentor. Lernziel: {payload['structured_insights'].get('issue_category')}.\n"
+        "RICHTLINIEN:\n"
+        "- Fokus: Behandle AUSSCHLIESSLICH den Fehler in den PR-Dateien:\n"
+        f"{json.dumps(state['pr_data'].get('changed_files', []), indent=2)}\n"
+        "- Nutze das REFERENZ-WISSEN nur als allgemeine Hilfe, nicht als spezifische Lösung für andere Probleme.\n\n"
+        "REFERENZ-WISSEN (RAG):\n"
+        f"{rag_summary}\n\n"
+        "OUTPUT:\n"
+        "- Antworte in Markdown.\n"
+        "- Strukturiere dein Feedback in: 'Observation', 'Socratic Question', 'Next Step'.\n"
+        "CONTEXT:\n"
+        f"{json.dumps(payload, sort_keys=True)}"
     )
-
 
 def _format_file_focus(state: ReviewState) -> str:
     files = [item.get("path", "unknown") for item in state["pr_data"].get("changed_files", [])]
@@ -128,46 +143,60 @@ def build_feedback(
     classified_comments: list[ClassifiedCopilotComment],
     llm_guidance: str,
 ) -> str:
-    category_counts = Counter(comment.category for comment in classified_comments)
+    """
+    Erstellt ein strukturiertes, didaktisch hochwertiges Review-Feedback im Markdown-Format.
+    """
+    # 1. Datenvorbereitung und Kontext-Extraktion
+    insights = state.get("structured_insights", {})
+    category = insights.get("issue_category", decision.primary_issue)
+    
+    # 2. Methodische Checkliste (dynamisch nach Kategorie)
+    methodische_impulse = [
+        f"- **Analyse:** Welche Annahme über den Code im Bereich `{category.upper()}` hat sich als kritisch erwiesen?",
+        f"- **Prozess:** Wie könntest du mit dem aktuellen Test-Fokus ({category}) prüfen, ob dieser Fehler bei zukünftigen Änderungen erneut auftritt?",
+        "- **Refactoring:** Welcher Refactoring-Schritt würde die Logik klarer machen, ohne den CI-Fehler zu 'verstecken'?"
+    ]
+
+    # 3. Copilot-Kommentare aufbereiten
     relevant = [comment for comment in classified_comments if comment.relevant]
     relevant_lines = [
-        f"- {comment.file}:{comment.line or '?'} [{comment.category}] {comment.comment}"
+        f"- `{comment.file}:{comment.line or '?'}` [{comment.category.upper()}] {comment.comment}"
         for comment in relevant
     ]
-    if not relevant_lines:
-        relevant_lines = ["- No Copilot comments matched the current route strongly."]
 
+    # 4. Dokumentations-Hints
     docs = _doc_hints(classified_comments)
     if not docs:
-        docs = ["- review strategy: [internal docs placeholder]/reviewing-ci-feedback"]
+        docs = ["keine spezifischen Dokumentations-Hinweise, da keine relevanten Copilot-Kommentare gefunden wurden."]
 
-    guidance = llm_guidance.strip() or (
-        "Start from the strongest failing signal and ask for the smallest learning step."
-    )
+    # 5. Finale Markdown-Strukturierung
+    output = "\n\n".join([
+        "## 🎓 Mentor Feedback",
+        f"**Fokus:** `{decision.primary_issue}` | **Schweregrad:** `{decision.severity.upper()}`",
+        f"**Betroffene Dateien:** `{_format_file_focus(state)}` | **CI-Status:** `{_format_ci_focus(state)}`",
 
-    return "\n".join(
-        [
-            "Mentor Feedback",
-            f"Focus: {decision.primary_issue} ({decision.severity})",
-            f"Changed areas: {_format_file_focus(state)}",
-            f"CI signal: {_format_ci_focus(state)}",
-            "",
-            "Copilot comments classified:",
-            *relevant_lines,
-            f"Category summary: {dict(sorted(category_counts.items()))}",
-            "",
-            "Guiding questions:",
-            "- Which missing regression test would make the failing pytest case obvious before CI runs?",
-            "- What does the mypy Optional warning tell you about the parser's assumptions?",
-            "- In the touched files, where can you add confidence without hiding the original CI signal?",
-            "",
-            "Documentation hints:",
-            *docs,
-            "",
-            f"Mentor stance: {guidance}",
-        ]
-    )
+        "---",
+        "### 🔍 Analyse der Anmerkungen",
+        *(relevant_lines if relevant_lines else ["- *Keine kritischen Anmerkungen durch Copilot gefunden.*"]),
 
+        "---",
+        "### 🎙️ Individueller Mentor-Impuls",
+        f"> {llm_guidance.strip()}",
+
+        "---",
+        "### 💡 Methodische Checkliste",
+        *methodische_impulse,
+
+        "---",
+        "### 📚 Ressourcen & Dokumentation",
+        *docs
+    ])
+
+    # 6. Artefakt-Sicherung (für Debugging/Protokollierung)
+    with open("feedback.md", "w", encoding="utf-8") as f:
+        f.write(output)
+
+    return output
 
 def run_dev_mentor_agent(
     state: ReviewState,

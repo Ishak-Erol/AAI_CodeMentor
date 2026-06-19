@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team CodeMentor | Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom Scrollbar für den Hacker-Look */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-200 font-sans h-screen flex flex-col">
+
+    <header class="bg-gray-900 border-b border-gray-800 p-4 flex justify-between items-center shadow-md">
+        <div class="flex items-center gap-3">
+            <div class="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+            <h1 class="text-xl font-bold tracking-wider text-white">CodeMentor <span class="text-blue-400">AAI</span></h1>
+        </div>
+        <div class="text-sm text-gray-400 font-mono">Sprint 4: MVP Demo | Status: Online</div>
+    </header>
+
+    <main class="flex-1 p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-hidden">
+        
+        <section class="bg-gray-900 border border-gray-800 rounded-xl p-5 flex flex-col shadow-lg overflow-y-auto">
+            <h2 class="text-lg font-semibold text-white mb-4 border-b border-gray-800 pb-2">1. PR Context</h2>
+            
+            <div class="bg-gray-950 p-4 rounded-lg font-mono text-sm text-gray-300 mb-4">
+                <span class="text-green-400">Owner:</span> <span id="pr-owner" class="text-white">Warte auf Daten...</span><br>
+                <span class="text-green-400">PR:</span> <span id="pr-title" class="text-white">...</span><br>
+                <span class="text-blue-400">Files:</span> <span id="pr-files" class="text-white">...</span>
+            </div>
+
+            <h3 class="text-md font-medium text-gray-400 mb-2 mt-2">CI Findings</h3>
+            <div id="ci-container" class="space-y-3">
+                <div class="text-xs text-gray-500 italic">Analysiere CI-Status...</div>
+            </div>
+        </section>
+
+        <section class="bg-gray-900 border border-gray-800 rounded-xl p-5 flex flex-col shadow-lg overflow-y-auto">
+            <h2 class="text-lg font-semibold text-white mb-4 border-b border-gray-800 pb-2">2. Agent Orchestration</h2>
+            
+            <div class="space-y-6">
+                <div class="flex flex-col gap-2 relative">
+                    <div class="bg-blue-900/20 border border-blue-800 rounded-lg p-4">
+                        <h4 class="text-blue-400 font-bold mb-1">🧠 Reflection Agent</h4>
+                        <p class="text-sm text-gray-300">Entscheidung: <span id="agent-reflection" class="bg-gray-800 px-2 py-0.5 rounded text-white font-mono">...</span></p>
+                        <p class="text-xs text-gray-500 mt-2">Routing to Dev Mentor...</p>
+                    </div>
+                    <div class="w-1 h-4 bg-gray-800 mx-auto"></div>
+                </div>
+
+                <div class="flex flex-col gap-2 relative">
+                    <div class="bg-emerald-900/20 border border-emerald-800 rounded-lg p-4">
+                        <h4 class="text-emerald-400 font-bold mb-1">🎓 Dev Mentor Agent</h4>
+                        <p id="agent-mentor" class="text-sm text-gray-300 italic whitespace-pre-wrap">Wartet auf Mentor-Analyse...</p>
+                        <div class="mt-3 flex gap-2">
+                            <span class="text-[10px] bg-gray-800 text-gray-400 px-2 py-1 rounded">RAG: Docs used</span>
+                        </div>
+                    </div>
+                    <div class="w-1 h-4 bg-gray-800 mx-auto"></div>
+                </div>
+
+                <div class="bg-amber-900/20 border border-amber-800 rounded-lg p-4">
+                    <h4 class="text-amber-400 font-bold mb-1">📚 Learning Agent</h4>
+                    <p class="text-sm text-gray-300">Lernpunkte extrahiert und in Memory gespeichert.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-gray-900 border border-gray-800 rounded-xl p-5 flex flex-col shadow-lg overflow-y-auto">
+            <h2 class="text-lg font-semibold text-white mb-4 border-b border-gray-800 pb-2">3. Memory & Mini-Testat</h2>
+            
+            <h3 class="text-md font-medium text-gray-400 mb-2">Gespeicherte Lernpunkte</h3>
+            <ul id="learning-points-list" class="space-y-2 mb-6">
+                <li class="text-sm text-gray-500 italic">Noch keine Lernpunkte erfasst...</li>
+            </ul>
+
+            <div class="mt-auto bg-gray-950 border border-gray-800 p-4 rounded-lg border-l-4 border-l-blue-500">
+                <h4 class="text-white font-bold mb-2">🎯 Generiertes Testat</h4>
+                <p id="testat-frage" class="text-sm text-gray-400 mb-3">Wie würdest du dieses Problem in Zukunft vermeiden?</p>
+                <input type="text" placeholder="Deine Antwort..." class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-white outline-none focus:border-blue-500 transition-colors">
+                <button class="mt-3 w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 rounded transition-colors text-sm">
+                    Antwort prüfen (Sokratisch)
+                </button>
+            </div>
+        </section>
+
+    </main>
+    
+<script>
+async function fetchData() {
+    try {
+        const response = await fetch('/api/results');
+        const data = await response.json();
+
+        if (data.error) {
+            console.log("Warte auf Daten...");
+            return;
+        }
+
+        // 1. PR Context befüllen
+        document.getElementById('pr-owner').innerText = data.pr_data.metadata.author || "Unbekannt";
+        document.getElementById('pr-title').innerText = `${data.pr_data.metadata.title} (#${data.pr_data.metadata.id})`;
+        
+        // Dateien als kommagetrennte Liste
+        const files = data.pr_data.changed_files.map(f => f.path).join(', ');
+        document.getElementById('pr-files').innerText = files;
+
+        // CI Findings dynamisch aufbauen (Pytest oder Ruff Fehler)
+        const ciContainer = document.getElementById('ci-container');
+        ciContainer.innerHTML = ''; // Vorherigen Inhalt leeren
+        
+        let hasErrors = false;
+        if (data.ci_findings.pytest && data.ci_findings.pytest.length > 0) {
+            hasErrors = true;
+            data.ci_findings.pytest.forEach(err => {
+                ciContainer.innerHTML += `
+                <div class="bg-red-950/30 border border-red-900 p-3 rounded-lg mb-2">
+                    <span class="text-red-400 font-bold text-xs">PYTEST ERROR</span>
+                    <p class="text-sm mt-1 font-mono truncate" title="${err.message}">${err.message.split('\\n')[0]}...</p>
+                </div>`;
+            });
+        }
+        if (data.ci_findings.ruff && data.ci_findings.ruff.length > 0) {
+            hasErrors = true;
+            data.ci_findings.ruff.forEach(err => {
+                ciContainer.innerHTML += `
+                <div class="bg-orange-950/30 border border-orange-900 p-3 rounded-lg mb-2">
+                    <span class="text-orange-400 font-bold text-xs">RUFF ERROR</span>
+                    <p class="text-sm mt-1 font-mono truncate">${err.message}</p>
+                </div>`;
+            });
+        }
+        if (!hasErrors) {
+             ciContainer.innerHTML = '<span class="text-green-500 text-sm">✓ Alle CI-Checks bestanden</span>';
+        }
+
+        // 2. Agent Orchestration - Reflection
+        try {
+            const decision = JSON.parse(data.reflection_decision);
+            document.getElementById('agent-reflection').innerText = decision.primary_issue;
+        } catch(e) {
+            document.getElementById('agent-reflection').innerText = "Analyse...";
+        }
+
+        // 2. Agent Orchestration - Dev Mentor Logik verbessert
+        const mentorRaw = data.mentor_feedback;
+        const mentorEl = document.getElementById('agent-mentor');
+
+        if (mentorRaw) {
+            try {
+                // Schneidet alles ab "### 🎙️ Individueller Mentor-Impuls" ab
+                const parts = mentorRaw.split('### 🎙️ Individueller Mentor-Impuls');
+                if (parts.length > 1) {
+                    // Schneidet den Teil nach der "Methodischen Checkliste" ab
+                    let impuls = parts[1].split('### 💡 Methodische Checkliste')[0].trim();
+                    
+                    // Entfernt das Blockquote-Zeichen ">" und leere "---" Linien am Ende
+                    impuls = impuls.replace(/^>\s*/, '');
+                    impuls = impuls.replace(/---\s*$/, '').trim();
+                    
+                    mentorEl.innerText = impuls;
+                } else {
+                    // Fallback, falls die Struktur mal abweicht
+                    mentorEl.innerText = mentorRaw.substring(0, 200) + "..."; 
+                }
+            } catch (e) {
+                mentorEl.innerText = "Konnte Mentor-Feedback nicht parsen.";
+            }
+        }
+
+        // 3. Memory (Lernpunkte auflisten)
+        const learningList = document.getElementById('learning-points-list');
+        learningList.innerHTML = '';
+        if (data.learning_points && data.learning_points.length > 0) {
+            data.learning_points.forEach(lp => {
+                // Farbe je nach Schwierigkeit
+                let badgeColor = "bg-emerald-600";
+                if(lp.difficulty === "medium") badgeColor = "bg-amber-600";
+                if(lp.difficulty === "hard") badgeColor = "bg-red-600";
+
+                learningList.innerHTML += `
+                <li class="bg-gray-800 p-2 rounded text-sm flex justify-between items-center">
+                    <span class="truncate pr-2" title="${lp.concept}">${lp.concept}</span>
+                    <span class="text-xs ${badgeColor} text-white px-2 py-0.5 rounded uppercase">${lp.difficulty}</span>
+                </li>`;
+            });
+        } else {
+            learningList.innerHTML = '<li class="text-sm text-gray-500 italic">Keine expliziten Lernpunkte erfasst.</li>';
+        }
+
+        console.log("Dashboard mit neuesten Daten aktualisiert!");
+    } catch (err) {
+        console.error("Fetch Fehler:", err);
+    }
+}
+
+// Sofort einmal abrufen, dann alle 2 Sekunden prüfen
+fetchData();
+setInterval(fetchData, 2000);
+</script>
+</body>
+</html>

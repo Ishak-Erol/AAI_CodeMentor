@@ -19,8 +19,12 @@ def build_learning_prompt(state: ReviewState) -> str:
         "rag_context": state.get("rag_context", []),
     }
     return (
-        "AGENT: learning\n"
-        "Extract learned concepts as a JSON list of concept, difficulty, and reason.\n"
+"Du bist ein Experte für Knowledge-Management. Deine Aufgabe ist es, aus dem Mentor-Feedback konkrete Lernziele zu extrahieren.\n"
+        "REGELN:\n"
+        "- Extrahiere maximal 3 klare Lernpunkte.\n"
+        "- 'difficulty' soll ein Wert zwischen 1 und 5 sein.\n"
+        "OUTPUT-SCHEMA (JSON): \n"
+        "[{\"concept\": str, \"difficulty\": int, \"reason\": str}]\n"
         f"CONTEXT:\n{json.dumps(payload, sort_keys=True)}"
     )
 

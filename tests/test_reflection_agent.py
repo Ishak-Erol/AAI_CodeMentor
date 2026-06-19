@@ -18,7 +18,6 @@ def test_reflection_agent_returns_structured_testing_decision() -> None:
 
     assert decision.primary_issue == "testing"
     assert decision.severity == "high"
-    assert decision.needs_copilot_analysis is True
     assert decision.next_agent == "dev_mentor"
 
 
