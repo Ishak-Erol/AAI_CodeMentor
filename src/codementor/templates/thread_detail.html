@@ -39,6 +39,9 @@
             <li>
                 <span>{{ point.concept }}</span>
                 <span class="badge-difficulty {{ point.difficulty }}">{{ point.difficulty }}</span>
+                {% if student_profile and point.concept in student_profile.repeated_concepts %}
+                <span class="badge-known">bereits bekannt</span>
+                {% endif %}
                 <span class="reason">{{ point.reason }}</span>
             </li>
             {% else %}
@@ -55,6 +58,23 @@
         </a>
     </section>
 </div>
+
+{% if student_profile and student_profile.seen_concepts %}
+<section class="panel" style="margin-top: 1.5rem;">
+    <h3>Dein bisheriger Fortschritt</h3>
+    <div class="progress-badges">
+        {% for concept, count in student_profile.seen_concepts.items() %}
+        <span class="badge-progress {% if concept in student_profile.repeated_concepts %}repeated{% endif %}">
+            {{ concept }} &times;{{ count }}
+            {% if concept in student_profile.repeated_concepts %}<em>bereits bekannt</em>{% endif %}
+        </span>
+        {% endfor %}
+    </div>
+    <div style="font-size: 0.8rem; color: var(--text-faint); margin-top: 0.5rem;">
+        {{ student_profile.total_threads }} abgeschlossene(r) Review-Thread(s) insgesamt.
+    </div>
+</section>
+{% endif %}
 
 <section class="panel" style="margin-top: 1.5rem;">
     <h3>Rückfragen</h3>

@@ -9,22 +9,30 @@ from pydantic import ValidationError
 from codementor.llm import BaseLLMClient, MockLLMClient
 from codementor.models import LearningPoint, parse_learning_points
 from codementor.state import ReviewState
+from codementor.student_profile import summarize_student_profile
 
 
-def build_learning_prompt(state: ReviewState) -> str:
+def build_learning_prompt(
+    state: ReviewState, existing_concepts: list[str] | None = None
+) -> str:
+    existing_concepts = existing_concepts or []
     payload = {
         "mentor_feedback": state["mentor_feedback"],
         "existing_learning_points": state["learning_points"],
         "learning_context": state["pr_data"].get("learning_context", {}),
         "rag_context": state.get("rag_context", []),
+        "existing_concepts": existing_concepts,
     }
     return (
 "Du bist ein Experte für Knowledge-Management. Deine Aufgabe ist es, aus dem Mentor-Feedback konkrete Lernziele zu extrahieren.\n"
         "REGELN:\n"
         "- Extrahiere maximal 3 klare Lernpunkte.\n"
         "- 'difficulty' soll ein Wert zwischen 1 und 5 sein.\n"
+        "- Wenn ein Konzept bereits in existing_concepts auftaucht, formuliere den reason-Text so, "
+        "dass er auf die Wiederholung hinweist (z.B. 'erneut relevant, diesmal in komplexerem Kontext').\n"
         "OUTPUT-SCHEMA (JSON): \n"
         "[{\"concept\": str, \"difficulty\": int, \"reason\": str}]\n"
+        f"BEREITS BEKANNTE KONZEPTE: {', '.join(existing_concepts) if existing_concepts else 'Keine.'}\n"
         f"CONTEXT:\n{json.dumps(payload, sort_keys=True)}"
     )
 
@@ -114,7 +122,9 @@ def run_learning_agent(
     llm: BaseLLMClient | None = None,
 ) -> list[LearningPoint]:
     client = llm or MockLLMClient()
-    raw_output = client.generate(build_learning_prompt(state))
+    student_id = state["pr_data"].get("metadata", {}).get("author") or "unknown"
+    existing_concepts = list(summarize_student_profile(student_id)["seen_concepts"].keys())
+    raw_output = client.generate(build_learning_prompt(state, existing_concepts=existing_concepts))
     new_points = parse_learning_points(raw_output)
     if not new_points:
         new_points = fallback_learning_points(state["mentor_feedback"])

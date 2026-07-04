@@ -14,6 +14,7 @@ from codementor.models import (
     parse_reflection_decision,
 )
 from codementor.state import ReviewState
+from codementor.student_profile import summarize_student_profile
 
 
 CATEGORY_BY_ISSUE: dict[str, set[CopilotCategory]] = {
@@ -80,29 +81,44 @@ def build_dev_mentor_prompt(
     state: ReviewState,
     decision: ReflectionDecision,
     classified_comments: list[ClassifiedCopilotComment],
+    student_profile: dict[str, Any] | None = None,
 ) -> str:
     # 1. RAG Kontext sicher extrahieren und für das LLM lesbar machen
     rag_data = state.get("rag_context", [])
     rag_summary = "\n".join([f"- {d['text']}" for d in rag_data]) if rag_data else "Kein zusätzlicher Kontext verfügbar."
-    
+
+    # 2. Wiederholte Konzepte aus dem Studierendenprofil extrahieren
+    repeated_concepts = (student_profile or {}).get("repeated_concepts", [])
+    repetition_hint = (
+        f"Diese Konzepte wurden bei diesem Studierenden bereits mehrfach behandelt: "
+        f"{', '.join(repeated_concepts)}. Wenn du eine Frage zu einem dieser Konzepte stellst, "
+        "stelle eine vertiefende statt eine grundlegende Frage und erwähne kurz, dass das Thema "
+        "bereits bekannt ist, statt es neu einzuführen."
+        if repeated_concepts
+        else "Noch keine wiederholten Konzepte bei diesem Studierenden bekannt."
+    )
+
     payload = {
         "reflection_decision": decision.model_dump(),
         "changed_files": state["pr_data"].get("changed_files", []),
         "ci_findings": state["ci_findings"],
         # Wir übergeben die zusammengefasste Summary, damit das Prompt-Token-Limit geschont wird
-        "rag_summary": rag_summary, 
+        "rag_summary": rag_summary,
         "classified_copilot_comments": [
             comment.model_dump() for comment in classified_comments
         ],
-        "structured_insights": state.get("structured_insights", {})
+        "structured_insights": state.get("structured_insights", {}),
+        "student_profile": student_profile or {},
     }
-    
+
     return (
 f"Du bist ein geduldiger Mentor. Lernziel: {payload['structured_insights'].get('issue_category')}.\n"
         "RICHTLINIEN:\n"
         "- Fokus: Behandle AUSSCHLIESSLICH den Fehler in den PR-Dateien:\n"
         f"{json.dumps(state['pr_data'].get('changed_files', []), indent=2)}\n"
         "- Nutze das REFERENZ-WISSEN nur als allgemeine Hilfe, nicht als spezifische Lösung für andere Probleme.\n\n"
+        "WIEDERHOLUNGS-HINWEIS (Studierendenprofil):\n"
+        f"{repetition_hint}\n\n"
         "REFERENZ-WISSEN (RAG):\n"
         f"{rag_summary}\n\n"
         "OUTPUT:\n"
@@ -278,7 +294,11 @@ def run_dev_mentor_agent(
     client = llm or MockLLMClient()
     decision = parse_reflection_decision(state["reflection_decision"])
     classified = classify_copilot_comments(state["copilot_comments"], decision)
-    llm_guidance = client.generate(build_dev_mentor_prompt(state, decision, classified))
+    student_id = state["pr_data"].get("metadata", {}).get("author") or "unknown"
+    student_profile = summarize_student_profile(student_id)
+    llm_guidance = client.generate(
+        build_dev_mentor_prompt(state, decision, classified, student_profile)
+    )
     return build_feedback(state, decision, classified, llm_guidance), classified
 
 

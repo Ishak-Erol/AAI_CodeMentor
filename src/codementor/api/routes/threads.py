@@ -17,6 +17,7 @@ from codementor.db.repository import (
     get_thread_messages,
     list_threads,
 )
+from codementor.student_profile import summarize_student_profile
 from codementor.threads import answer_follow_up
 
 router = APIRouter()
@@ -59,6 +60,8 @@ async def thread_detail(request: Request, thread_id: int) -> HTMLResponse:
     feedback_citations = [c for c in citations if c.message_id is None]
     citations_by_message = _group_citations_by_message(citations)
 
+    student_profile = summarize_student_profile(thread.student_id)
+
     return templates.TemplateResponse(
         request,
         "thread_detail.html",
@@ -71,6 +74,7 @@ async def thread_detail(request: Request, thread_id: int) -> HTMLResponse:
             "testat": testat,
             "feedback_citations": feedback_citations,
             "citations_by_message": citations_by_message,
+            "student_profile": student_profile,
         },
     )
 
