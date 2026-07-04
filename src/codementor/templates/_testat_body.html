@@ -1,21 +1,19 @@
 <div id="testat-container">
 {% if testat %}
-<ol class="space-y-3 list-decimal list-inside bg-gray-900 border border-gray-800 rounded-xl p-5">
+<ol class="testat-list panel">
     {% for question in questions %}
-    <li class="text-gray-200 text-sm">{{ question.question }}
-        <span class="block text-xs text-gray-500 ml-5">Konzept: {{ question.concept }}</span>
+    <li>{{ question.question }}
+        <span class="concept">Konzept: {{ question.concept }}</span>
     </li>
     {% endfor %}
 </ol>
 {% else %}
-<div class="bg-gray-900 border border-gray-800 rounded-xl p-5 text-sm text-gray-400 italic mb-4">
+<div class="panel" style="color: var(--text-muted); font-style: italic; margin-bottom: 1rem;">
     Noch kein Testat für diesen Thread.
 </div>
 <form hx-post="/threads/{{ thread.id }}/testat/generate" hx-target="#testat-container" hx-swap="outerHTML" hx-indicator="#gen-spinner">
-    <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded text-sm">
-        Testat jetzt generieren
-    </button>
-    <span id="gen-spinner" class="htmx-indicator ml-2 text-xs text-gray-400">läuft...</span>
+    <button type="submit">Testat jetzt generieren</button>
+    <span id="gen-spinner" class="htmx-indicator" style="margin-left: 0.5rem; font-size: 0.8rem; color: var(--text-muted);">läuft...</span>
 </form>
 {% endif %}
 </div>

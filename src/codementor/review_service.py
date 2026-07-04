@@ -12,6 +12,7 @@ from codementor.db.repository import (
     get_or_create_pull_request,
     save_agent_output,
     save_learning_points,
+    save_rag_citations,
 )
 from codementor.models import LearningPoint, parse_reflection_decision
 from codementor.testat import generate_testat
@@ -54,6 +55,7 @@ def persist_review_run(
 
     save_agent_output(thread.id, "reflection", final_state["reflection_decision"])
     save_agent_output(thread.id, "dev_mentor", final_state["mentor_feedback"])
+    save_rag_citations(thread.id, final_state.get("rag_context", []))
     save_agent_output(
         thread.id, "learning", json.dumps(final_state["learning_points"])
     )

@@ -1,4 +1,13 @@
-<div class="p-3 rounded-lg text-sm {% if message.role == 'student' %}bg-blue-900/20 border border-blue-800{% else %}bg-emerald-900/20 border border-emerald-800{% endif %}">
-    <span class="block text-xs uppercase tracking-wide {% if message.role == 'student' %}text-blue-400{% else %}text-emerald-400{% endif %} mb-1">{{ message.role }}</span>
-    <p class="text-gray-200 whitespace-pre-wrap">{{ message.content }}</p>
-</div>
+<li class="chat-message role-{{ message.role }}">
+    <span class="role">{{ message.role }}</span>
+    <p>{{ message.content }}</p>
+    {% set message_citations = citations_by_message.get(message.id) if citations_by_message else None %}
+    {% if message_citations %}
+    <div class="chat-citations">
+        &#128279;
+        {% for citation in message_citations %}
+        <a href="{{ citation.source }}" target="_blank" rel="noopener noreferrer" title="{{ citation.snippet }}">{{ citation.source }}</a>
+        {% endfor %}
+    </div>
+    {% endif %}
+</li>

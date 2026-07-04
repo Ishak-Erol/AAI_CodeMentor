@@ -1,60 +1,76 @@
-{% extends "_layout.html" %}
+{% extends "base.html" %}
 {% block title %}Thread #{{ thread.id }} | Team CodeMentor{% endblock %}
 {% block content %}
-<a href="/threads" class="text-blue-400 text-sm">&larr; Zurück zur Liste</a>
+<a href="/threads">&larr; Zurück zur Liste</a>
 
-<h2 class="text-lg font-semibold text-white mt-2 mb-1">Thread #{{ thread.id }} &mdash; {{ thread.student_id }}</h2>
-<div class="text-sm text-gray-400 mb-4">
+<h2 class="page-title" style="margin-top: 0.5rem; margin-bottom: 0.25rem;">Thread #{{ thread.id }} &mdash; {{ thread.student_id }}</h2>
+<div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">
     {% if pull_request %}
-    PR: <span class="text-white">{{ pull_request.owner }}/{{ pull_request.repo }}#{{ pull_request.pr_number }}</span>
+    PR: <strong style="color: white;">{{ pull_request.owner }}/{{ pull_request.repo }}#{{ pull_request.pr_number }}</strong>
     &mdash; {{ pull_request.title }}
     {% endif %}
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <section class="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-xl p-5">
-        <h3 class="text-white font-semibold mb-3 border-b border-gray-800 pb-2">Mentor Feedback</h3>
-        <div class="prose prose-invert max-w-none text-sm">
+<div class="grid-2">
+    <section class="panel">
+        <h3>Mentor Feedback</h3>
+        <div class="markdown-body">
             {{ mentor_feedback | markdown | safe }}
         </div>
+
+        {% if feedback_citations %}
+        <div class="rag-sources">
+            <h4>Verwendete Dokumentation</h4>
+            <ul>
+                {% for citation in feedback_citations %}
+                <li>
+                    <a href="{{ citation.source }}" target="_blank" rel="noopener noreferrer" title="{{ citation.snippet }}">{{ citation.source }}</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
     </section>
 
-    <section class="bg-gray-900 border border-gray-800 rounded-xl p-5">
-        <h3 class="text-white font-semibold mb-3 border-b border-gray-800 pb-2">Lernpunkte</h3>
-        <ul class="space-y-2">
+    <section class="panel">
+        <h3>Lernpunkte</h3>
+        <ul class="learning-points">
             {% for point in learning_points %}
-            <li class="bg-gray-800 p-2 rounded text-sm">
-                <span class="text-white">{{ point.concept }}</span>
-                <span class="text-xs text-gray-400 block">{{ point.reason }}</span>
+            <li>
+                <span>{{ point.concept }}</span>
+                <span class="badge-difficulty {{ point.difficulty }}">{{ point.difficulty }}</span>
+                <span class="reason">{{ point.reason }}</span>
             </li>
             {% else %}
-            <li class="text-sm text-gray-500 italic">Keine Lernpunkte.</li>
+            <li style="background: none; color: var(--text-faint); font-style: italic;">Keine Lernpunkte.</li>
             {% endfor %}
         </ul>
 
-        <a href="/threads/{{ thread.id }}/testat" class="block mt-4 text-sm text-blue-400 hover:underline">
+        <a href="/threads/{{ thread.id }}/testat" style="display: block; margin-top: 1rem; font-size: 0.9rem;">
+            {% if learning_points and learning_points | selectattr("kind", "equalto", "testat_suggestion") | list %}
+            <strong>Mini-Testat verfügbar &rarr;</strong>
+            {% else %}
             Mini-Testat ansehen &rarr;
+            {% endif %}
         </a>
     </section>
 </div>
 
-<section class="bg-gray-900 border border-gray-800 rounded-xl p-5 mt-6">
-    <h3 class="text-white font-semibold mb-3 border-b border-gray-800 pb-2">Rückfragen</h3>
-    <div id="chat-list" class="space-y-3 mb-4">
+<section class="panel" style="margin-top: 1.5rem;">
+    <h3>Rückfragen</h3>
+    <ul id="chat-log" class="chat-log">
         {% for message in messages %}
         {% include "_chat_message_item.html" %}
         {% else %}
-        <div class="text-sm text-gray-500 italic">Noch keine Rückfragen.</div>
+        <li style="color: var(--text-faint); font-style: italic; list-style: none;">Noch keine Rückfragen.</li>
         {% endfor %}
-    </div>
+    </ul>
 
-    <form hx-post="/threads/{{ thread.id }}/ask" hx-target="#chat-list" hx-swap="beforeend" hx-indicator="#ask-spinner" class="flex gap-2">
-        <input type="text" name="question" placeholder="Deine Frage..." required
-               class="flex-1 bg-gray-950 border border-gray-700 rounded p-2 text-sm text-white outline-none focus:border-blue-500">
-        <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded text-sm">
-            Fragen
-        </button>
-        <span id="ask-spinner" class="htmx-indicator text-xs text-gray-400 self-center">...</span>
+    <form hx-post="/threads/{{ thread.id }}/ask" hx-target="#chat-log" hx-swap="beforeend"
+          hx-indicator="#ask-spinner" hx-on::after-request="this.reset()" class="ask-form">
+        <input type="text" name="question" placeholder="Deine Frage..." required>
+        <button type="submit">Fragen</button>
+        <span id="ask-spinner" class="htmx-indicator" style="align-self: center; font-size: 0.8rem; color: var(--text-muted);">...</span>
     </form>
 </section>
 {% endblock %}

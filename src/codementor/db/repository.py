@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from sqlmodel import select
 
@@ -11,6 +12,7 @@ from codementor.db.models import (
     LearningPoint,
     MiniTestat,
     PullRequest,
+    RagCitation,
     ReviewThread,
     ThreadMessage,
 )
@@ -186,3 +188,35 @@ def get_mini_testat(thread_id: int) -> MiniTestat | None:
     with get_session(_engine()) as session:
         statement = select(MiniTestat).where(MiniTestat.thread_id == thread_id)
         return session.exec(statement).first()
+
+
+def save_rag_citations(
+    thread_id: int, rag_context: list[dict[str, Any]], message_id: int | None = None
+) -> list[RagCitation]:
+    with get_session(_engine()) as session:
+        saved: list[RagCitation] = []
+        for item in rag_context:
+            source = str(item.get("source") or "unbekannte Quelle")
+            snippet = str(item.get("text") or "")[:500]
+            citation = RagCitation(
+                thread_id=thread_id,
+                message_id=message_id,
+                source=source,
+                snippet=snippet,
+            )
+            session.add(citation)
+            saved.append(citation)
+        session.commit()
+        for citation in saved:
+            session.refresh(citation)
+        return saved
+
+
+def get_thread_citations(thread_id: int) -> list[RagCitation]:
+    with get_session(_engine()) as session:
+        statement = (
+            select(RagCitation)
+            .where(RagCitation.thread_id == thread_id)
+            .order_by(RagCitation.timestamp)
+        )
+        return list(session.exec(statement).all())

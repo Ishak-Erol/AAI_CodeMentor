@@ -186,6 +186,20 @@ def _doc_hints(classified_comments: list[ClassifiedCopilotComment]) -> list[str]
     return [f"- {category}: {DOC_LINKS[category]}" for category in sorted(categories)]
 
 
+def _rag_citations(rag_context: list[dict[str, Any]]) -> list[str]:
+    seen: set[str] = set()
+    citations: list[str] = []
+    for item in rag_context:
+        source = str(item.get("source") or "unbekannte Quelle")
+        if source in seen:
+            continue
+        seen.add(source)
+        text = str(item.get("text") or "").strip().replace("\n", " ")
+        snippet = text[:120]
+        citations.append(f'- [{source}]({source}): "{snippet}..."')
+    return citations
+
+
 def build_feedback(
     state: ReviewState,
     decision: ReflectionDecision,
@@ -218,7 +232,13 @@ def build_feedback(
     if not docs:
         docs = ["keine spezifischen Dokumentations-Hinweise, da keine relevanten Copilot-Kommentare gefunden wurden."]
 
-    # 5. Finale Markdown-Strukturierung
+    # 5. Konkret abgerufene RAG-Quellen (getrennt von den generischen Kategorie-Links)
+    rag_context = state.get("rag_context", [])
+    rag_citation_lines = _rag_citations(rag_context)
+    if not rag_citation_lines:
+        rag_citation_lines = ["Kein spezifischer Dokumentationskontext für diesen Fall gefunden."]
+
+    # 6. Finale Markdown-Strukturierung
     output = "\n\n".join([
         "## 🎓 Mentor Feedback",
         f"**Fokus:** `{decision.primary_issue}` | **Schweregrad:** `{decision.severity.upper()}`",
@@ -235,6 +255,10 @@ def build_feedback(
         "---",
         "### 💡 Methodische Checkliste",
         *methodische_impulse,
+
+        "---",
+        "### 🔗 Konkret verwendete Quellen (RAG)",
+        *rag_citation_lines,
 
         "---",
         "### 📚 Ressourcen & Dokumentation",

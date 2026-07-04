@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from codementor.api.templating import templates
@@ -19,18 +18,8 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 @app.get("/")
-async def read_index() -> FileResponse:
-    return FileResponse(str(STATIC_DIR / "index.html"))
-
-
-@app.get("/api/results")
-async def get_results() -> JSONResponse:
-    try:
-        with open("last_run.json", "r", encoding="utf-8") as handle:
-            data = json.load(handle)
-        return JSONResponse(data)
-    except FileNotFoundError:
-        return JSONResponse({"error": "No results yet. Run main.py first!"})
+async def read_index() -> RedirectResponse:
+    return RedirectResponse(url="/threads")
 
 
 @app.exception_handler(GitHubClientError)

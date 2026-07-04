@@ -56,3 +56,12 @@ class MiniTestat(SQLModel, table=True):
     thread_id: int = Field(foreign_key="reviewthread.id")
     questions_json: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class RagCitation(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    thread_id: int = Field(foreign_key="reviewthread.id")
+    message_id: int | None = Field(default=None, foreign_key="threadmessage.id")
+    source: str
+    snippet: str
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
