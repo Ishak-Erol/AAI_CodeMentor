@@ -123,11 +123,23 @@ f"Du bist ein geduldiger Mentor. Lernziel: {payload['structured_insights'].get('
         f"{rag_summary}\n\n"
         "OUTPUT:\n"
         "- Antworte in Markdown.\n"
-        "- Strukturiere dein Feedback in: 'Observation', 'Socratic Question', 'Next Step'.\n"
-        "- Deine 'Socratic Question' MUSS sich auf eine konkrete Zeile, Funktion oder Datei "
-        "aus den geänderten Dateien oder einen konkreten CI-Fehler beziehen — keine "
-        "abstrakte Kategorie-Frage wie 'Welche Annahme hat sich als kritisch erwiesen?' "
-        "ohne Bezug zum tatsächlichen Code.\n"
+        "- Strukturiere deine Antwort in GENAU diese vier Absätze, jeweils mit dem Label in "
+        "Fettdruck als eigene Zeile:\n"
+        "  **Was ist passiert:** 1-2 Sätze, was sich im Code konkret geändert hat (bezogen auf "
+        "die tatsächlichen geänderten Dateien/Zeilen), und was daran auffällig ist.\n"
+        "  **Warum das wichtig ist:** 2-4 Sätze ECHTE Erklärung des zugrunde liegenden Konzepts "
+        "oder Risikos in einfachen Worten — KEINE Frage, sondern eine Erklärung. Der Studierende "
+        "soll danach verstehen, WORUM es fachlich geht, auch wenn er die konkrete Lösung noch "
+        "nicht kennt.\n"
+        "  **Worüber du nachdenken solltest:** GENAU EINE konkrete, code-bezogene sokratische "
+        "Frage (keine abstrakte Kategorie-Frage wie 'Welche Annahme hat sich als kritisch "
+        "erwiesen?' ohne Bezug zum tatsächlichen Code), die den Studierenden zur eigenen Lösung "
+        "führt.\n"
+        "  **Nächster Schritt:** Ein konkreter, überprüfbarer Handlungsschritt (z.B. ein Befehl "
+        "zum Ausführen, eine Zeile zum Anschauen, ein Test zum Schreiben) — keine allgemeine "
+        "Floskel wie 'überprüfe, ob alles funktioniert'.\n"
+        "- Gib an KEINER Stelle den fertigen Code-Fix oder die exakte Lösung für diesen PR preis "
+        "— 'Warum das wichtig ist' erklärt das KONZEPT, nicht die Lösung für diesen konkreten Fall.\n"
         "CONTEXT:\n"
         f"{json.dumps(payload, sort_keys=True)}"
     )
@@ -243,66 +255,39 @@ def build_feedback(
     classified_comments: list[ClassifiedCopilotComment],
     llm_guidance: str,
 ) -> str:
+    """Erstellt ein Review-Feedback im Markdown-Format.
+
+    Zeigt nur Abschnitte mit echtem Inhalt — keine statischen Fülltexte oder
+    "nichts gefunden"-Platzhalter, damit das Feedback dicht bleibt.
     """
-    Erstellt ein strukturiertes, didaktisch hochwertiges Review-Feedback im Markdown-Format.
-    """
-    # 1. Datenvorbereitung und Kontext-Extraktion
-    insights = state.get("structured_insights", {})
-    category = insights.get("issue_category", decision.primary_issue)
-    
-    # 2. Methodische Checkliste (dynamisch nach Kategorie)
-    methodische_impulse = [
-        f"- **Analyse:** Welche Annahme über den Code im Bereich `{category.upper()}` hat sich als kritisch erwiesen?",
-        f"- **Prozess:** Wie könntest du mit dem aktuellen Test-Fokus ({category}) prüfen, ob dieser Fehler bei zukünftigen Änderungen erneut auftritt?",
-        "- **Refactoring:** Welcher Refactoring-Schritt würde die Logik klarer machen, ohne den CI-Fehler zu 'verstecken'?"
-    ]
-
-    # 3. Copilot-Kommentare aufbereiten
-    relevant = [comment for comment in classified_comments if comment.relevant]
-    relevant_lines = [
-        f"- `{comment.file}:{comment.line or '?'}` [{comment.category.upper()}] {comment.comment}"
-        for comment in relevant
-    ]
-
-    # 4. Dokumentations-Hints
-    docs = _doc_hints(classified_comments)
-    if not docs:
-        docs = ["keine spezifischen Dokumentations-Hinweise, da keine relevanten Copilot-Kommentare gefunden wurden."]
-
-    # 5. Konkret abgerufene RAG-Quellen (getrennt von den generischen Kategorie-Links)
-    rag_context = state.get("rag_context", [])
-    rag_citation_lines = _rag_citations(rag_context)
-    if not rag_citation_lines:
-        rag_citation_lines = ["Kein spezifischer Dokumentationskontext für diesen Fall gefunden."]
-
-    # 6. Finale Markdown-Strukturierung
-    output = "\n\n".join([
+    sections = [
         "## 🎓 Mentor Feedback",
         f"**Fokus:** `{decision.primary_issue}` | **Schweregrad:** `{decision.severity.upper()}`",
         f"**Betroffene Dateien:** `{_format_file_focus(state)}` | **CI-Status:** `{_format_ci_focus(state)}`",
+    ]
 
-        "---",
-        "### 🔍 Analyse der Anmerkungen",
-        *(relevant_lines if relevant_lines else ["- *Keine kritischen Anmerkungen durch Copilot gefunden.*"]),
+    relevant = [comment for comment in classified_comments if comment.relevant]
+    if relevant:
+        relevant_lines = [
+            f"- `{comment.file}:{comment.line or '?'}` [{comment.category.upper()}] {comment.comment}"
+            for comment in relevant
+        ]
+        sections += ["---", "### 🔍 Relevante Anmerkungen", *relevant_lines]
 
-        "---",
-        "### 🎙️ Individueller Mentor-Impuls",
-        f"> {llm_guidance.strip()}",
+    sections += ["---", "### 🎙️ Mentor-Feedback", llm_guidance.strip()]
 
-        "---",
-        "### 💡 Methodische Checkliste",
-        *methodische_impulse,
+    rag_context = state.get("rag_context", [])
+    rag_citation_lines = _rag_citations(rag_context)
+    if rag_citation_lines:
+        sections += ["---", "### 🔗 Verwendete Quellen (RAG)", *rag_citation_lines]
 
-        "---",
-        "### 🔗 Konkret verwendete Quellen (RAG)",
-        *rag_citation_lines,
+    docs = _doc_hints(classified_comments)
+    if docs:
+        sections += ["---", "### 📚 Weiterführende Dokumentation", *docs]
 
-        "---",
-        "### 📚 Ressourcen & Dokumentation",
-        *docs
-    ])
+    output = "\n\n".join(sections)
 
-    # 6. Artefakt-Sicherung (für Debugging/Protokollierung)
+    # Artefakt-Sicherung (für Debugging/Protokollierung)
     with open("feedback.md", "w", encoding="utf-8") as f:
         f.write(output)
 
