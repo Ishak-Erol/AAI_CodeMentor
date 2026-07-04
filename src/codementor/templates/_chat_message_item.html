@@ -1,0 +1,4 @@
+<div class="p-3 rounded-lg text-sm {% if message.role == 'student' %}bg-blue-900/20 border border-blue-800{% else %}bg-emerald-900/20 border border-emerald-800{% endif %}">
+    <span class="block text-xs uppercase tracking-wide {% if message.role == 'student' %}text-blue-400{% else %}text-emerald-400{% endif %} mb-1">{{ message.role }}</span>
+    <p class="text-gray-200 whitespace-pre-wrap">{{ message.content }}</p>
+</div>

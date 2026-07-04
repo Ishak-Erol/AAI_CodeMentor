@@ -11,12 +11,13 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from codementor.api.dependencies import get_llm_client
 from codementor.config import get_config
 from codementor.db.engine import get_engine, init_db
 from codementor.graph import build_review_graph
 from codementor.github.client import GitHubClient, GitHubClientError
 from codementor.github.copilot import extract_copilot_comments
-from codementor.llm import LLMClientError, MockLLMClient, OpenAICompatibleLLMClient
+from codementor.llm import LLMClientError
 from codementor.mock_loader import load_mock_review_state
 from codementor.models import parse_reflection_decision
 from codementor.rag import get_rag_context
@@ -28,16 +29,6 @@ from codementor.tools.github_tools import get_pr_data
 
 def _json_default(value: Any) -> str:
     return str(value)
-
-
-def _get_llm_client(config, enabled: bool):
-    if not enabled:
-        return MockLLMClient()
-    return OpenAICompatibleLLMClient(
-        api_key=config.llm_api_key,
-        base_url=config.llm_base_url,
-        model=config.llm_model,
-    )
 
 
 def run_mock(
@@ -186,7 +177,7 @@ def main() -> int:
     rag_enabled = args.rag or config.rag_enabled
     llm_enabled = args.llm or config.llm_enabled
     try:
-        llm_client = _get_llm_client(config, llm_enabled)
+        llm_client = get_llm_client(config, llm_enabled)
     except LLMClientError as exc:
         print(f"LLM error: {exc}")
         return 2

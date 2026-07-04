@@ -47,6 +47,11 @@ def get_or_create_pull_request(owner: str, repo: str, pr_number: int, title: str
         return pull_request
 
 
+def get_pull_request(pr_id: int) -> PullRequest | None:
+    with get_session(_engine()) as session:
+        return session.get(PullRequest, pr_id)
+
+
 def create_thread(pr_id: int, primary_issue: str, severity: str, student_id: str) -> ReviewThread:
     with get_session(_engine()) as session:
         thread = ReviewThread(

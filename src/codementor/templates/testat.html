@@ -1,0 +1,7 @@
+{% extends "_layout.html" %}
+{% block title %}Testat | Thread #{{ thread.id }}{% endblock %}
+{% block content %}
+<a href="/threads/{{ thread.id }}" class="text-blue-400 text-sm">&larr; Zurück zum Thread</a>
+<h2 class="text-lg font-semibold text-white mt-2 mb-4">Mini-Testat &mdash; Thread #{{ thread.id }}</h2>
+{% include "_testat_body.html" %}
+{% endblock %}
