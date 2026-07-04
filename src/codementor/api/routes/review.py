@@ -37,10 +37,16 @@ async def create_review(
     try:
         if mode == "github":
             result = main_module.run_github(
-                owner, repo, pr_number, llm_client=llm_client
+                owner,
+                repo,
+                pr_number,
+                llm_client=llm_client,
+                rag_enabled=config.rag_enabled,
             )
         else:
-            result = main_module.run_mock(llm_client=llm_client)
+            result = main_module.run_mock(
+                llm_client=llm_client, rag_enabled=config.rag_enabled
+            )
     except (GitHubClientError, LLMClientError) as exc:
         return templates.TemplateResponse(
             request, "_error.html", {"message": str(exc)}, status_code=502
