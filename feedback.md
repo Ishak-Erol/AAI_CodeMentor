@@ -14,15 +14,14 @@
 
 ### 🎙️ Individueller Mentor-Impuls
 
-> # Feedback für die PR-Dateien
-## Observation
-Die PR-Dateien enthalten einige Tests für die Funktion `divide` im Modul `rechner.py`. Die Tests scheinen jedoch nicht korrekt zu sein, da sie einen Fehler in der Funktion `divide` nicht berücksichtigen.
+> **Observation**
+Die geänderten Dateien umfassen nur die Datei `test_rechner.py`, die neu hinzugefügt wurde. In dieser Datei sind zwei Tests implementiert: `test_divide_normal_case` und `test_divide_by_zero_returns_none`. Der Test `test_divide_by_zero_returns_none` scheint jedoch fehlerhaft zu sein, da er eine `ZeroDivisionError` auslöst.
 
-## Socratic Question
-Wie könnten Sie die Tests so anpassen, dass sie auch den Fall berücksichtigen, dass die Funktion `divide` eine Division durch Null ausführt?
+**Socratic Question**
+Warum glaubst du, dass der Test `test_divide_by_zero_returns_none` eine `ZeroDivisionError` auslöst? Was könnte der Grund dafür sein?
 
-## Next Step
-Überlegen Sie, wie Sie die Tests so anpassen können, dass sie auch den Fall berücksichtigen, dass die Funktion `divide` eine Division durch Null ausführt. Denken Sie daran, dass die Funktion `divide` eine `ZeroDivisionError` auslöst, wenn eine Division durch Null erfolgt. Wie könnten Sie dies in Ihren Tests berücksichtigen?
+**Next Step**
+Überprüfe, ob der Test `test_divide_by_zero_returns_none` korrekt implementiert ist. Wenn der Test eine `ZeroDivisionError` auslöst, soll er tatsächlich eine Ausnahme auslösen, wenn man versucht, durch Null zu dividieren. Wenn dies der Fall ist, soll der Test erfolgreich sein und `None` zurückgeben. Wenn der Test jedoch eine `ZeroDivisionError` auslöst, soll er fehlschlagen und eine entsprechende Fehlermeldung ausgeben.
 
 ---
 
