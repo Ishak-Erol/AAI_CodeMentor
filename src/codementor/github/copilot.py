@@ -46,3 +46,44 @@ def extract_copilot_comments(
             }
         )
     return comments
+
+
+def extract_review_comments(
+    reviews: list[dict[str, Any]],
+    review_comments: list[dict[str, Any]],
+    allowlist: list[str],
+) -> list[dict[str, Any]]:
+    """Like `extract_copilot_comments`, but keeps comments from every reviewer
+    (human and Copilot), tagging each with its `source` instead of dropping
+    non-allowlisted authors."""
+    comments: list[dict[str, Any]] = []
+    for review in reviews:
+        body = str(review.get("body") or "").strip()
+        if not body:
+            continue
+        user = review.get("user")
+        comments.append(
+            {
+                "file": "general",
+                "line": None,
+                "comment": body,
+                "author": (user or {}).get("login"),
+                "source": "copilot" if _is_copilot_author(user, allowlist) else "human",
+            }
+        )
+
+    for comment in review_comments:
+        body = str(comment.get("body") or "").strip()
+        if not body:
+            continue
+        user = comment.get("user")
+        comments.append(
+            {
+                "file": comment.get("path") or "unknown",
+                "line": comment.get("line") or comment.get("original_line"),
+                "comment": body,
+                "author": (user or {}).get("login"),
+                "source": "copilot" if _is_copilot_author(user, allowlist) else "human",
+            }
+        )
+    return comments

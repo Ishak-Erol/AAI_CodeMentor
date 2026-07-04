@@ -16,7 +16,7 @@ from codementor.config import get_config
 from codementor.db.engine import get_engine, init_db
 from codementor.graph import build_review_graph
 from codementor.github.client import GitHubClient, GitHubClientError
-from codementor.github.copilot import extract_copilot_comments
+from codementor.github.copilot import extract_review_comments as extract_copilot_comments
 from codementor.llm import LLMClientError
 from codementor.mock_loader import load_mock_review_state
 from codementor.models import parse_reflection_decision
