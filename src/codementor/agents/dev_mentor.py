@@ -5,6 +5,7 @@ from collections import Counter
 from copy import deepcopy
 from typing import Any, cast
 
+from codementor.db.models import ThreadMessage
 from codementor.llm import BaseLLMClient, MockLLMClient
 from codementor.models import (
     ClassifiedCopilotComment,
@@ -110,6 +111,54 @@ f"Du bist ein geduldiger Mentor. Lernziel: {payload['structured_insights'].get('
         "CONTEXT:\n"
         f"{json.dumps(payload, sort_keys=True)}"
     )
+
+def build_follow_up_prompt(
+    original_feedback: str,
+    prior_messages: list[ThreadMessage],
+    question: str,
+    rag_summary: str = "",
+) -> str:
+    history_lines = [
+        f"{message.role}: {message.content}" for message in prior_messages
+    ]
+    history_text = (
+        "\n".join(history_lines)
+        if history_lines
+        else "Keine bisherige Rückfragen-Historie."
+    )
+
+    payload = {
+        "original_feedback": original_feedback,
+        "history": [
+            {"role": message.role, "content": message.content}
+            for message in prior_messages
+        ],
+        "question": question,
+        "rag_summary": rag_summary,
+    }
+
+    return (
+        "Du bist ein geduldiger Mentor, der eine Rückfrage zu einem bereits gegebenen "
+        "Review-Feedback in einem laufenden Thread beantwortet.\n"
+        "RICHTLINIEN:\n"
+        "- Antworte sokratisch: stelle Rückfragen, gib KEINE fertige Lösung vor.\n"
+        "- Beziehe dich auf das ursprüngliche Mentor-Feedback und die bisherige Historie.\n"
+        "- Nutze das REFERENZ-WISSEN nur als allgemeine Hilfe, nicht als fertige Antwort.\n\n"
+        "URSPRÜNGLICHES MENTOR-FEEDBACK:\n"
+        f"{original_feedback}\n\n"
+        "BISHERIGE HISTORIE:\n"
+        f"{history_text}\n\n"
+        "NEUE FRAGE:\n"
+        f"{question}\n\n"
+        "REFERENZ-WISSEN (RAG):\n"
+        f"{rag_summary or 'Kein zusätzlicher Kontext verfügbar.'}\n\n"
+        "OUTPUT:\n"
+        "- Antworte in Markdown.\n"
+        "- Gib keine fertige Lösung vor, stelle stattdessen eine sokratische Rückfrage.\n"
+        "CONTEXT:\n"
+        f"{json.dumps(payload, sort_keys=True)}"
+    )
+
 
 def _format_file_focus(state: ReviewState) -> str:
     files = [item.get("path", "unknown") for item in state["pr_data"].get("changed_files", [])]
