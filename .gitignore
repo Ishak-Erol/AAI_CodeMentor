@@ -5,6 +5,7 @@ plan.md
 .env
 *.bin
 *.sqlite3
+*.db
 SPRINT4_TICKETS.md
 deploy.md
 plan.md

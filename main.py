@@ -12,6 +12,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from codementor.config import get_config
+from codementor.db.engine import get_engine, init_db
 from codementor.graph import build_review_graph
 from codementor.github.client import GitHubClient, GitHubClientError
 from codementor.github.copilot import extract_copilot_comments
@@ -19,6 +20,7 @@ from codementor.llm import LLMClientError, MockLLMClient, OpenAICompatibleLLMCli
 from codementor.mock_loader import load_mock_review_state
 from codementor.models import parse_reflection_decision
 from codementor.rag import get_rag_context
+from codementor.review_service import persist_review_run
 from codementor.state import create_initial_state
 from codementor.tools.ci_tools import get_ci_results
 from codementor.tools.github_tools import get_pr_data
@@ -56,7 +58,18 @@ def run_mock(
         state["rag_context"] = rag_context
     graph = build_review_graph(llm=llm_client)
     final_state = graph.invoke(state)
-    return dict(final_state)
+    result = dict(final_state)
+
+    pr_metadata = result["pr_data"].get("metadata", {})
+    thread = persist_review_run(
+        owner="mock",
+        repo="mock",
+        pr_number=0,
+        title=pr_metadata.get("title", ""),
+        final_state=result,
+    )
+    result["thread_id"] = thread.id
+    return result
 
 
 def run_github(
@@ -113,11 +126,28 @@ def run_github(
     state = create_initial_state(pr_data, ci_findings, copilot_comments, rag_context)
     graph = build_review_graph(llm=llm_client)
     final_state = graph.invoke(state) # graph wird komplett ausgeführt
-    return dict(final_state)
+    result = dict(final_state)
+
+    thread = persist_review_run(
+        owner=owner,
+        repo=repo,
+        pr_number=pr_number,
+        title=pr_data.get("metadata", {}).get("title", ""),
+        final_state=result,
+    )
+    result["thread_id"] = thread.id
+    return result
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Team CodeMentor Sprint 2 CLI")
+    parser.add_argument(
+        "command",
+        nargs="?",
+        choices=["init-db"],
+        default=None,
+        help="Optional subcommand. Use 'init-db' to create the SQLite schema and exit.",
+    )
     parser.add_argument(
         "--mode",
         default="mock",
@@ -143,6 +173,12 @@ def main() -> int:
         help="Enable live LLM calls using the AcademicCloud API.",
     )
     args = parser.parse_args()
+
+    if args.command == "init-db":
+        config = get_config()
+        init_db(get_engine(config.db_path))
+        print(f"Initialized database at {config.db_path}")
+        return 0
 
     config = get_config()
     rag_enabled = args.rag or config.rag_enabled

@@ -12,6 +12,7 @@ DEFAULT_RAG_TOP_K = 4
 DEFAULT_LLM_BASE_URL = "https://chat-ai.academiccloud.de/v1"
 DEFAULT_LLM_MODEL = "meta-llama-3.1-8b-instruct"
 DEFAULT_EMBED_MODEL = "multilingual-e5-large-instruct"
+DEFAULT_DB_PATH = "codementor.db"
 
 
 @dataclass(frozen=True)
@@ -31,6 +32,7 @@ class AppConfig:
     embed_model: str
     llm_enabled: bool
     rag_use_api_embeddings: bool
+    db_path: str
 
 
 def _parse_allowlist(raw_value: str | None) -> list[str]:
@@ -76,4 +78,5 @@ def get_config() -> AppConfig:
             os.getenv("CODEMENTOR_RAG_USE_API_EMBEDDINGS")
         )
         or bool(api_key),
+        db_path=os.getenv("CODEMENTOR_DB_PATH", DEFAULT_DB_PATH),
     )
