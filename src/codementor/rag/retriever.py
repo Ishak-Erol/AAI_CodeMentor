@@ -21,6 +21,36 @@ def _get_collection(persist_dir: str, embedding_function):
     )
 
 
+_MAX_DIFF_QUERY_CHARS = 500
+
+
+def _diff_keyword_snippets(pr_data: dict[str, Any]) -> list[str]:
+    """Extracts concrete added-line snippets from the PR diff (capped in length).
+
+    Generic PR titles/descriptions (e.g. "Demo/comment") or empty CI findings/
+    comments leave the RAG query with nothing specific to search for. The added
+    diff lines usually contain the actual technical terms/syntax (e.g. a changed
+    GitHub Actions key like `continue-on-error`) that real documentation could
+    ground an explanation in — so pull those in directly, capped so a large diff
+    doesn't dilute the query with too much noise.
+    """
+    snippets: list[str] = []
+    total_len = 0
+    for changed_file in pr_data.get("changed_files", []):
+        diff_text = str(changed_file.get("diff") or "")
+        for line in diff_text.splitlines():
+            if not line.startswith("+") or line.startswith("+++"):
+                continue
+            cleaned = line[1:].strip()
+            if not cleaned:
+                continue
+            snippets.append(cleaned)
+            total_len += len(cleaned)
+            if total_len > _MAX_DIFF_QUERY_CHARS:
+                return snippets
+    return snippets
+
+
 def build_query(
     pr_data: dict[str, Any],
     ci_findings: dict[str, Any],
@@ -43,6 +73,8 @@ def build_query(
 
     for comment in copilot_comments[:5]:
         parts.append(str(comment.get("comment") or ""))
+
+    parts.extend(_diff_keyword_snippets(pr_data))
 
     return " ".join(part for part in parts if part).strip()
 

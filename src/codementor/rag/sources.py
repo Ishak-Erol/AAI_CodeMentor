@@ -11,6 +11,7 @@ DEFAULT_DOC_URLS = [
     "https://docs.astral.sh/ruff/",
     "https://mypy.readthedocs.io/en/stable/",
     "https://docs.pytest.org/en/stable/",
+    "https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions",
 ]
 
 
