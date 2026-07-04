@@ -18,6 +18,8 @@ def build_learning_prompt(
     existing_concepts = existing_concepts or []
     payload = {
         "mentor_feedback": state["mentor_feedback"],
+        "changed_files": state["pr_data"].get("changed_files", []),
+        "ci_findings": state["ci_findings"],
         "existing_learning_points": state["learning_points"],
         "learning_context": state["pr_data"].get("learning_context", {}),
         "rag_context": state.get("rag_context", []),
@@ -27,10 +29,19 @@ def build_learning_prompt(
 "Du bist ein Experte für Knowledge-Management. Deine Aufgabe ist es, aus dem Mentor-Feedback konkrete Lernziele zu extrahieren.\n"
         "REGELN:\n"
         "- Extrahiere maximal 3 klare Lernpunkte.\n"
+        "- 'concept' MUSS ein konkretes technisches Konzept aus den geänderten Dateien, den "
+        "CI-Findings oder der 'Observation'/'Next Step' im Mentor-Feedback sein (z.B. 'GitHub "
+        "Actions continue-on-error', 'ZeroDivisionError-Behandlung'). Verwende NIEMALS die "
+        "Überschriften der 'Methodischen Checkliste' (z.B. 'Analyse', 'Prozess', 'Refactoring', "
+        "'Test-Fokus', 'Code-Qualität') als concept — das sind generische Formatierungs-Labels, "
+        "keine Lerninhalte.\n"
         "- 'difficulty' MUSS exakt einer dieser drei Werte sein: \"easy\", \"medium\" oder \"hard\" "
         "(als String, keine Zahl).\n"
-        "- Wenn ein Konzept bereits in existing_concepts auftaucht, formuliere den reason-Text so, "
-        "dass er auf die Wiederholung hinweist (z.B. 'erneut relevant, diesmal in komplexerem Kontext').\n"
+        "- Formuliere den reason-Text NUR dann als Wiederholungs-Hinweis (z.B. 'erneut relevant, "
+        "diesmal in komplexerem Kontext'), wenn das exakt gleiche oder ein sehr ähnliches Konzept "
+        "bereits wörtlich in BEREITS BEKANNTE KONZEPTE unten steht. Ist BEREITS BEKANNTE KONZEPTE "
+        "leer oder passt kein Konzept, schreibe einen normalen, PR-bezogenen reason-Text ohne "
+        "Wiederholungs-Floskel.\n"
         "- Antworte AUSSCHLIESSLICH mit dem JSON-Array, ohne einleitenden oder erklärenden Text davor "
         "oder danach, und ohne Markdown-Codeblock.\n"
         "OUTPUT-SCHEMA (JSON): \n"
