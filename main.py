@@ -20,7 +20,7 @@ from codementor.llm import LLMClientError, MockLLMClient, OpenAICompatibleLLMCli
 from codementor.mock_loader import load_mock_review_state
 from codementor.models import parse_reflection_decision
 from codementor.rag import get_rag_context
-from codementor.review_service import persist_review_run
+from codementor.review_service import persist_review_run, sync_learning_context
 from codementor.state import create_initial_state
 from codementor.tools.ci_tools import get_ci_results
 from codementor.tools.github_tools import get_pr_data
@@ -56,6 +56,7 @@ def run_mock(
             refresh=rag_refresh,
         )
         state["rag_context"] = rag_context
+    state = sync_learning_context(state)
     graph = build_review_graph(llm=llm_client)
     final_state = graph.invoke(state)
     result = dict(final_state)
@@ -124,6 +125,7 @@ def run_github(
             refresh=rag_refresh,
         )
     state = create_initial_state(pr_data, ci_findings, copilot_comments, rag_context)
+    state = sync_learning_context(state)
     graph = build_review_graph(llm=llm_client)
     final_state = graph.invoke(state) # graph wird komplett ausgeführt
     result = dict(final_state)
