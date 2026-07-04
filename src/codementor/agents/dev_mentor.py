@@ -111,6 +111,47 @@ def build_dev_mentor_prompt(
         "student_profile": student_profile or {},
     }
 
+    if decision.has_concrete_evidence:
+        output_instructions = (
+            "- Strukturiere deine Antwort in GENAU diese vier Absätze, jeweils mit dem Label in "
+            "Fettdruck als eigene Zeile:\n"
+            "  **Was ist passiert:** 1-2 Sätze, was sich im Code konkret geändert hat (bezogen auf "
+            "die tatsächlichen geänderten Dateien/Zeilen), und was daran auffällig ist.\n"
+            "  **Warum das wichtig ist:** 2-4 Sätze ECHTE Erklärung des zugrunde liegenden Konzepts "
+            "oder Risikos in einfachen Worten — KEINE Frage, sondern eine Erklärung. Der Studierende "
+            "soll danach verstehen, WORUM es fachlich geht, auch wenn er die konkrete Lösung noch "
+            "nicht kennt.\n"
+            "  **Worüber du nachdenken solltest:** GENAU EINE konkrete, code-bezogene sokratische "
+            "Frage (keine abstrakte Kategorie-Frage wie 'Welche Annahme hat sich als kritisch "
+            "erwiesen?' ohne Bezug zum tatsächlichen Code), die den Studierenden zur eigenen Lösung "
+            "führt.\n"
+            "  **Nächster Schritt:** Ein konkreter, überprüfbarer Handlungsschritt (z.B. ein Befehl "
+            "zum Ausführen, eine Zeile zum Anschauen, ein Test zum Schreiben) — keine allgemeine "
+            "Floskel wie 'überprüfe, ob alles funktioniert'.\n"
+            "- Gib an KEINER Stelle den fertigen Code-Fix oder die exakte Lösung für diesen PR preis "
+            "— 'Warum das wichtig ist' erklärt das KONZEPT, nicht die Lösung für diesen konkreten Fall.\n"
+        )
+    else:
+        output_instructions = (
+            "- WICHTIG: Es liegen WEDER CI-Findings NOCH Review-Kommentare für diesen PR vor — du "
+            "hast NUR den reinen Code-Diff als Anhaltspunkt. Erfinde KEINE hypothetischen "
+            "Konsequenzen, Risiken oder Verhaltensweisen, die sich nicht direkt und offensichtlich "
+            "aus dem Diff ablesen lassen (z.B. keine erfundenen Aussagen über CI-System-Verhalten, "
+            "Performance oder Seiteneffekte, die dort nicht sichtbar sind).\n"
+            "- Strukturiere deine Antwort in GENAU diese vier Absätze, jeweils mit dem Label in "
+            "Fettdruck als eigene Zeile:\n"
+            "  **Was ist passiert:** 1-2 Sätze, was sich im Code konkret geändert hat.\n"
+            "  **Was noch unklar ist:** Benenne EHRLICH, was sich ohne CI-Lauf oder Review-"
+            "Kommentar nicht beurteilen lässt (z.B. ob eine entfernte Funktion noch anderswo im "
+            "Projekt aufgerufen wird, oder ob die Tests noch grün sind).\n"
+            "  **Worüber du nachdenken solltest:** GENAU EINE konkrete Frage, die den "
+            "Studierenden dazu bringt, das selbst zu überprüfen (z.B. im Repo nach Aufrufen "
+            "einer entfernten Funktion zu suchen).\n"
+            "  **Nächster Schritt:** Ein konkreter, selbst ausführbarer Check (z.B. 'führe die "
+            "Tests lokal aus und schau, ob etwas fehlschlägt', 'durchsuche das Repo nach "
+            "Aufrufen von X') — keine allgemeine Floskel.\n"
+        )
+
     return (
 f"Du bist ein geduldiger Mentor. Lernziel: {payload['structured_insights'].get('issue_category')}.\n"
         "RICHTLINIEN:\n"
@@ -123,23 +164,7 @@ f"Du bist ein geduldiger Mentor. Lernziel: {payload['structured_insights'].get('
         f"{rag_summary}\n\n"
         "OUTPUT:\n"
         "- Antworte in Markdown.\n"
-        "- Strukturiere deine Antwort in GENAU diese vier Absätze, jeweils mit dem Label in "
-        "Fettdruck als eigene Zeile:\n"
-        "  **Was ist passiert:** 1-2 Sätze, was sich im Code konkret geändert hat (bezogen auf "
-        "die tatsächlichen geänderten Dateien/Zeilen), und was daran auffällig ist.\n"
-        "  **Warum das wichtig ist:** 2-4 Sätze ECHTE Erklärung des zugrunde liegenden Konzepts "
-        "oder Risikos in einfachen Worten — KEINE Frage, sondern eine Erklärung. Der Studierende "
-        "soll danach verstehen, WORUM es fachlich geht, auch wenn er die konkrete Lösung noch "
-        "nicht kennt.\n"
-        "  **Worüber du nachdenken solltest:** GENAU EINE konkrete, code-bezogene sokratische "
-        "Frage (keine abstrakte Kategorie-Frage wie 'Welche Annahme hat sich als kritisch "
-        "erwiesen?' ohne Bezug zum tatsächlichen Code), die den Studierenden zur eigenen Lösung "
-        "führt.\n"
-        "  **Nächster Schritt:** Ein konkreter, überprüfbarer Handlungsschritt (z.B. ein Befehl "
-        "zum Ausführen, eine Zeile zum Anschauen, ein Test zum Schreiben) — keine allgemeine "
-        "Floskel wie 'überprüfe, ob alles funktioniert'.\n"
-        "- Gib an KEINER Stelle den fertigen Code-Fix oder die exakte Lösung für diesen PR preis "
-        "— 'Warum das wichtig ist' erklärt das KONZEPT, nicht die Lösung für diesen konkreten Fall.\n"
+        f"{output_instructions}"
         "CONTEXT:\n"
         f"{json.dumps(payload, sort_keys=True)}"
     )

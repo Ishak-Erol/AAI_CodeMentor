@@ -35,6 +35,15 @@ def route_after_reflection(state: ReviewState) -> str:
     return decision.next_agent
 
 
+def route_after_dev_mentor(state: ReviewState) -> str:
+    """Dynamic routing: skip the learning agent entirely when the reflection
+    decision found no concrete evidence (no CI findings, no review comments) to
+    ground learning points in — there is nothing genuinely new to extract, so
+    running it would just fabricate generic concepts."""
+    decision = parse_reflection_decision(state["reflection_decision"])
+    return "learning" if decision.has_concrete_evidence else "end"
+
+
 def build_review_graph(llm: BaseLLMClient | None = None):
     client = llm or MockLLMClient()
     graph = StateGraph(ReviewState)
@@ -58,6 +67,10 @@ def build_review_graph(llm: BaseLLMClient | None = None):
             "end": END,
         },
     )
-    graph.add_edge("dev_mentor_agent", "learning_agent")
+    graph.add_conditional_edges(
+        "dev_mentor_agent",
+        route_after_dev_mentor,
+        {"learning": "learning_agent", "end": END},
+    )
     graph.add_edge("learning_agent", END)
     return graph.compile()

@@ -41,14 +41,28 @@ def build_reflection_prompt(state: ReviewState) -> str:
         f"CONTEXT:\n{json.dumps(payload, sort_keys=True)}"
     )
 
+def _has_concrete_evidence(state: ReviewState) -> bool:
+    """Deterministic (non-LLM) check: is there real CI or review signal to ground
+    concrete feedback in, or would the dev mentor have to speculate from the raw
+    diff alone? Computed in code rather than asked of the LLM because this is a
+    factual check, not a judgment call — keeping it deterministic makes the
+    downstream routing decision reliable regardless of model size/quality."""
+    ci = state.get("ci_findings", {})
+    has_ci_findings = bool(ci.get("ruff") or ci.get("mypy") or ci.get("pytest"))
+    has_review_comments = bool(state.get("copilot_comments"))
+    return has_ci_findings or has_review_comments
+
+
 def run_reflection_agent(
     state: ReviewState,
     llm: BaseLLMClient | None = None,
 ) -> ReflectionDecision:
+    has_evidence = _has_concrete_evidence(state)
+
     # 🚨 DETEKTIERE TRIVIALE ÄNDERUNGEN DIREKT (GUARDRAIL)
     ci = state.get("ci_findings", {})
     is_ci_clean = not (ci.get("ruff") or ci.get("mypy") or ci.get("pytest"))
-    
+
     changed_files = state["pr_data"].get("changed_files", [])
     only_comments_or_empty = True
     for f in changed_files:
@@ -65,13 +79,17 @@ def run_reflection_agent(
         return ReflectionDecision(
             primary_issue="code_quality",  # Erlaubtes Literal
             severity="low",                # Niedriger Schweregrad
-            next_agent="end"               # Kette sauber beenden (ohne verbotenes 'reasoning' Feld)
+            next_agent="end",              # Kette sauber beenden (ohne verbotenes 'reasoning' Feld)
+            has_concrete_evidence=has_evidence,
         )
 
     # Normaler LLM-Pfad für echte Code-Änderungen
     client = llm or MockLLMClient()
     raw_output = client.generate(build_reflection_prompt(state))
-    return parse_reflection_decision(raw_output)
+    decision = parse_reflection_decision(raw_output)
+    # has_concrete_evidence wird immer deterministisch überschrieben, unabhängig
+    # davon, was das LLM geliefert hat (siehe _has_concrete_evidence oben).
+    return decision.model_copy(update={"has_concrete_evidence": has_evidence})
 
 def reflection_agent_node(llm: BaseLLMClient | None = None):
     def node(state: ReviewState) -> ReviewState:

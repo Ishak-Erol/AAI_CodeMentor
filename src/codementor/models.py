@@ -24,6 +24,11 @@ class ReflectionDecision(BaseModel):
     primary_issue: PrimaryIssue
     severity: Severity
     next_agent: NextAgent
+    # Deterministically computed (not LLM-decided) in reflection.py from real CI
+    # findings / review comments. Drives dynamic graph routing: dev_mentor uses a
+    # different, honesty-first prompt and the learning agent is skipped entirely
+    # when there is nothing concrete to ground feedback in.
+    has_concrete_evidence: bool = True
 
 
 class ClassifiedCopilotComment(BaseModel):
@@ -57,7 +62,7 @@ _CODE_FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
 _JSON_SNIPPET_RE = re.compile(r"[\[{].*[\]}]", re.DOTALL)
 
 
-def _extract_json_snippet(raw_output: str) -> str:
+def extract_json_snippet(raw_output: str) -> str:
     """Best-effort extraction of the JSON payload from an LLM response that may
     wrap valid JSON in explanatory prose or a markdown code fence."""
     text = raw_output.strip()
@@ -76,7 +81,7 @@ def parse_reflection_decision(raw_output: str) -> ReflectionDecision:
     except (ValidationError, ValueError, TypeError):
         pass
     try:
-        return ReflectionDecision.model_validate_json(_extract_json_snippet(raw_output))
+        return ReflectionDecision.model_validate_json(extract_json_snippet(raw_output))
     except (ValidationError, ValueError, TypeError):
         return DEFAULT_REFLECTION_DECISION
 
@@ -88,6 +93,6 @@ def parse_learning_points(raw_output: str) -> list[LearningPoint]:
     except (ValidationError, ValueError, TypeError, json.JSONDecodeError):
         pass
     try:
-        return adapter.validate_json(_extract_json_snippet(raw_output))
+        return adapter.validate_json(extract_json_snippet(raw_output))
     except (ValidationError, ValueError, TypeError, json.JSONDecodeError):
         return []

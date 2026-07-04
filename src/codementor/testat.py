@@ -11,6 +11,7 @@ from codementor.db.repository import (
     save_mini_testat,
 )
 from codementor.llm import BaseLLMClient, MockLLMClient
+from codementor.models import extract_json_snippet
 
 
 def build_testat_prompt(points: list[LearningPoint]) -> str:
@@ -25,6 +26,8 @@ def build_testat_prompt(points: list[LearningPoint]) -> str:
         "- Erzeuge zwischen 2 und 3 Fragen.\n"
         "- Jede Frage ist offen formuliert (keine Multiple-Choice) und bezieht sich "
         "auf ein konkretes Konzept aus dem CONTEXT.\n"
+        "- Antworte AUSSCHLIESSLICH mit dem JSON-Array, ohne einleitenden oder erklärenden "
+        "Text davor oder danach, und ohne Markdown-Codeblock.\n"
         "OUTPUT-SCHEMA (JSON): \n"
         "[{\"concept\": str, \"question\": str}]\n"
         f"CONTEXT:\n{json.dumps(concepts, sort_keys=True)}"
@@ -61,7 +64,10 @@ def _parse_testat_questions(
     try:
         parsed = json.loads(raw_output)
     except (ValueError, TypeError):
-        return _fallback_questions(points)
+        try:
+            parsed = json.loads(extract_json_snippet(raw_output))
+        except (ValueError, TypeError):
+            return _fallback_questions(points)
 
     if not isinstance(parsed, list):
         return _fallback_questions(points)
