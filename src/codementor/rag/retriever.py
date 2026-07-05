@@ -6,6 +6,7 @@ from codementor.config import AppConfig
 from codementor.rag.embeddings import get_embedding_function, SimpleHashEmbeddingFunction
 from codementor.rag.indexer import index_documents
 from codementor.rag.sources import ensure_doc_urls
+from codementor.rag.topics import ensure_topic_sources
 
 
 def _get_collection(persist_dir: str, embedding_function):
@@ -146,6 +147,11 @@ def get_rag_context(
                 refresh=False,
                 max_pages_per_source=config.rag_max_pages,
             )
+
+    # Agentisches Sicherheitsnetz: Fehlt zum erkannten PR-Thema jede Quelle im
+    # Index (vergessene URL, fehlgeschlagener Fetch beim Refresh), wird sie
+    # jetzt on-demand nachindexiert, bevor abgefragt wird.
+    ensure_topic_sources(pr_data, ci_findings, config, embedding_function)
 
     query = build_query(pr_data, ci_findings, copilot_comments)
     return retrieve_context(
