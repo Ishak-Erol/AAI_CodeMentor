@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 from dataclasses import dataclass
 import logging
 from typing import Any
@@ -169,3 +170,28 @@ class GitHubClient:
             ),
             expect_json=False,
         )
+
+    def search_code(self, owner: str, repo: str, query: str) -> list[dict]:
+        payload = self._request(
+            GitHubRequest("GET", "/search/code"),
+            params={"q": f"{query} repo:{owner}/{repo}", "per_page": 20},
+        )
+        if not isinstance(payload, dict):
+            raise GitHubClientError("GitHub API returned unexpected search payload.")
+        return payload.get("items", [])
+
+    def get_file_content(
+        self, owner: str, repo: str, path: str, ref: str | None = None
+    ) -> str:
+        params = {"ref": ref} if ref else None
+        payload = self._request(
+            GitHubRequest("GET", f"/repos/{owner}/{repo}/contents/{path}"),
+            params=params,
+        )
+        if not isinstance(payload, dict):
+            raise GitHubClientError("GitHub API returned unexpected contents payload.")
+        raw = payload.get("content") or ""
+        try:
+            return base64.b64decode(raw).decode("utf-8", errors="replace")
+        except (ValueError, TypeError) as exc:
+            raise GitHubClientError("GitHub API returned undecodable file content.") from exc

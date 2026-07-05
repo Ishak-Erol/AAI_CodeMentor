@@ -76,3 +76,17 @@ class TestatAnswer(SQLModel, table=True):
     assessment: str                    # "verstanden" | "teilweise" | "nicht_verstanden"
     feedback: str                      # Bewertungs-Begründung des Mentors
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
+class ConceptEvidence(SQLModel, table=True):
+    """Verständnis-Signal außerhalb des Testats — z.B. wenn ein Studierender im
+    Follow-up-Chat eine sokratische Frage inhaltlich richtig beantwortet. Fließt
+    gleichberechtigt mit Testat-Bewertungen ins Studierendenprofil ein."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    thread_id: int = Field(foreign_key="reviewthread.id")
+    concept: str
+    assessment: str                    # "verstanden" | "teilweise" | "nicht_verstanden"
+    source: str = "chat"
+    note: str                          # kurze Begründung des Beobachters
+    timestamp: datetime = Field(default_factory=datetime.utcnow)

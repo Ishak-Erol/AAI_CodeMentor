@@ -20,6 +20,7 @@ def orchestrator_node(state: ReviewState) -> ReviewState:
     updated.setdefault("mentor_feedback", "")
     updated.setdefault("learning_points", [])
     updated.setdefault("copilot_comments", [])
+    updated.setdefault("gathered_context", {})
     # 2. Sprint 3 Analyse-Logik direkt beim Start
     # Damit haben alle nachfolgenden Nodes die Erkenntnisse vorliegen
     updated["structured_insights"] = analyze_context(updated)

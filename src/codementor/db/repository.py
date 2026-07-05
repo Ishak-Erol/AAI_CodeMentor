@@ -9,6 +9,7 @@ from codementor.config import get_config
 from codementor.db.engine import get_engine, get_session
 from codementor.db.models import (
     AgentOutput,
+    ConceptEvidence,
     LearningPoint,
     MiniTestat,
     PullRequest,
@@ -266,5 +267,33 @@ def get_student_assessments(student_id: str) -> list[TestatAnswer]:
             .join(ReviewThread, MiniTestat.thread_id == ReviewThread.id)
             .where(ReviewThread.student_id == student_id)
             .order_by(TestatAnswer.timestamp)
+        )
+        return list(session.exec(statement).all())
+
+
+def save_concept_evidence(
+    thread_id: int, concept: str, assessment: str, note: str, source: str = "chat"
+) -> ConceptEvidence:
+    with get_session(_engine()) as session:
+        record = ConceptEvidence(
+            thread_id=thread_id,
+            concept=concept,
+            assessment=assessment,
+            source=source,
+            note=note,
+        )
+        session.add(record)
+        session.commit()
+        session.refresh(record)
+        return record
+
+
+def get_student_concept_evidence(student_id: str) -> list[ConceptEvidence]:
+    with get_session(_engine()) as session:
+        statement = (
+            select(ConceptEvidence)
+            .join(ReviewThread, ConceptEvidence.thread_id == ReviewThread.id)
+            .where(ReviewThread.student_id == student_id)
+            .order_by(ConceptEvidence.timestamp)
         )
         return list(session.exec(statement).all())

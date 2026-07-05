@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import logging
 from typing import Any
 
 from codementor.agents.dev_mentor import build_follow_up_prompt
@@ -8,13 +10,21 @@ from codementor.db.models import ThreadMessage
 from codementor.db.repository import (
     get_thread,
     get_thread_agent_outputs,
+    get_thread_learning_points,
     get_thread_messages,
+    save_concept_evidence,
     save_rag_citations,
     save_thread_message,
 )
 from codementor.llm import BaseLLMClient, MockLLMClient
+from codementor.models import extract_json_snippet
 from codementor.rag.embeddings import get_embedding_function
 from codementor.rag.retriever import retrieve_context
+
+
+logger = logging.getLogger(__name__)
+
+VALID_OBSERVATION_VERDICTS = {"verstanden", "teilweise", "nicht_verstanden"}
 
 
 def _retrieve_rag_results(question: str) -> list[dict[str, Any]]:
@@ -34,6 +44,81 @@ def _summarize_rag_results(results: list[dict[str, Any]]) -> str:
     if not results:
         return ""
     return "\n".join(f"- {item['text']}" for item in results)
+
+
+def build_chat_observation_prompt(
+    concepts: list[str], mentor_question: str, student_message: str
+) -> str:
+    payload = {
+        "bekannte_konzepte": concepts,
+        "letzte_mentor_frage": mentor_question,
+        "studierenden_nachricht": student_message,
+    }
+    return (
+        "Du bist ein stiller Beobachter in einem Lern-Chat. Prüfe, ob die Nachricht des "
+        "Studierenden ein VERSTÄNDNIS-SIGNAL zu einem der bekannten Konzepte enthält.\n"
+        "REGELN:\n"
+        "- 'verdict' MUSS exakt einer dieser Werte sein: \"verstanden\" (die Nachricht "
+        "erklärt das Konzept inhaltlich korrekt), \"teilweise\" (richtiger Ansatz, aber "
+        "lückenhaft), \"nicht_verstanden\" (inhaltlich falsche Aussage über das Konzept) "
+        "oder \"keine_aussage\".\n"
+        "- 'keine_aussage' gilt IMMER, wenn die Nachricht nur eine Frage, ein Gruß, "
+        "Ratlosigkeit ('weiß nicht') oder Smalltalk ist — eine Frage zu stellen ist KEIN "
+        "Beleg für fehlendes Verständnis. Im Zweifel IMMER 'keine_aussage'.\n"
+        "- 'concept' MUSS wörtlich eines der Konzepte aus 'bekannte_konzepte' sein, "
+        "oder null bei 'keine_aussage'.\n"
+        "- Antworte AUSSCHLIESSLICH mit dem JSON-Objekt, ohne Text davor oder danach.\n"
+        "OUTPUT-SCHEMA (JSON): \n"
+        "{\"concept\": str | null, \"verdict\": \"verstanden\" | \"teilweise\" | "
+        "\"nicht_verstanden\" | \"keine_aussage\", \"begruendung\": str}\n"
+        f"CONTEXT:\n{json.dumps(payload, sort_keys=True)}"
+    )
+
+
+def _observe_chat_evidence(
+    thread_id: int,
+    prior_messages: list[ThreadMessage],
+    student_message: str,
+    llm: BaseLLMClient,
+) -> None:
+    """Bewertet still, ob die Studierenden-Nachricht Verständnis belegt, und
+    speichert das als ConceptEvidence. Darf den Chat NIE zum Scheitern bringen —
+    jeder Fehler wird geschluckt und nur geloggt."""
+    concepts = [
+        point.concept
+        for point in get_thread_learning_points(thread_id)
+        if point.kind == "learning_point"
+    ]
+    if not concepts:
+        return
+
+    mentor_messages = [m for m in prior_messages if m.role == "mentor"]
+    mentor_question = mentor_messages[-1].content if mentor_messages else ""
+
+    raw = llm.generate(
+        build_chat_observation_prompt(concepts, mentor_question, student_message)
+    )
+    for candidate in (raw, extract_json_snippet(raw)):
+        try:
+            parsed = json.loads(candidate)
+        except (ValueError, TypeError):
+            continue
+        if not isinstance(parsed, dict):
+            continue
+        concept = parsed.get("concept")
+        verdict = parsed.get("verdict")
+        if (
+            verdict in VALID_OBSERVATION_VERDICTS
+            and isinstance(concept, str)
+            and concept in concepts
+        ):
+            save_concept_evidence(
+                thread_id=thread_id,
+                concept=concept,
+                assessment=verdict,
+                note=str(parsed.get("begruendung", "")).strip()[:500],
+            )
+        return
 
 
 def answer_follow_up(
@@ -67,5 +152,10 @@ def answer_follow_up(
 
     if rag_results:
         save_rag_citations(thread_id, rag_results, message_id=mentor_message.id)
+
+    try:
+        _observe_chat_evidence(thread_id, prior_messages, question, client)
+    except Exception as exc:  # noqa: BLE001 — Beobachtung darf den Chat nie brechen
+        logger.warning("Chat-Beobachtung übersprungen (thread %s): %s", thread_id, exc)
 
     return mentor_message

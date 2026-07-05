@@ -50,7 +50,15 @@ def _has_concrete_evidence(state: ReviewState) -> bool:
     ci = state.get("ci_findings", {})
     has_ci_findings = bool(ci.get("ruff") or ci.get("mypy") or ci.get("pytest"))
     has_review_comments = bool(state.get("copilot_comments"))
-    return has_ci_findings or has_review_comments
+    # Auch selbst beschaffter Kontext zählt: Wenn die Code-Suche zeigt, dass eine
+    # entfernte Funktion noch referenziert wird, ist das ein konkreter Befund —
+    # das System hat sich seine Evidenz dann selbst beschafft (Plan-Execute).
+    gathered = state.get("gathered_context") or {}
+    has_reference_findings = any(
+        item.get("reference_count", 0) > 0
+        for item in gathered.get("removed_function_references", [])
+    )
+    return has_ci_findings or has_review_comments or has_reference_findings
 
 
 def run_reflection_agent(

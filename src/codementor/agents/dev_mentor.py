@@ -11,6 +11,7 @@ from codementor.models import (
     ClassifiedCopilotComment,
     CopilotCategory,
     ReflectionDecision,
+    extract_json_snippet,
     parse_reflection_decision,
 )
 from codementor.state import ReviewState
@@ -124,6 +125,8 @@ def build_dev_mentor_prompt(
         else "Noch kein Lernstand zu diesem Studierenden bekannt — behandle alle Konzepte als neu."
     )
 
+    gathered_context = state.get("gathered_context") or {}
+
     payload = {
         "reflection_decision": decision.model_dump(),
         "changed_files": state["pr_data"].get("changed_files", []),
@@ -135,6 +138,7 @@ def build_dev_mentor_prompt(
         ],
         "structured_insights": state.get("structured_insights", {}),
         "student_profile": student_profile or {},
+        "gathered_context": gathered_context,
     }
 
     if decision.has_concrete_evidence:
@@ -189,7 +193,13 @@ f"Du bist ein geduldiger Mentor. Lernziel: {payload['structured_insights'].get('
         "unten ODER direkt durch den gezeigten Diff belegt sind. Wenn du dir über das Verhalten "
         "eines Tools/einer Syntax-Option nicht sicher bist und weder RAG noch der Diff das "
         "eindeutig zeigen, sag das ehrlich (z.B. 'wie genau sich X auswirkt, lässt sich ohne "
-        "weitere Doku nicht sicher sagen') statt eine plausibel klingende Vermutung zu erfinden.\n\n"
+        "weitere Doku nicht sicher sagen') statt eine plausibel klingende Vermutung zu erfinden.\n"
+        "- VOM SYSTEM AUTOMATISCH BESCHAFFTER KONTEXT (siehe 'gathered_context' im CONTEXT): "
+        "Wenn 'removed_function_references' einen Eintrag mit reference_count > 0 enthält, ist "
+        "das ein KONKRETER Befund: Eine im PR entfernte Funktion wird auf dem Default-Branch "
+        "noch an den gelisteten Stellen referenziert. Benenne das explizit und frage, ob diese "
+        "Stellen im PR mitangepasst wurden. 'file_contents' (vollständige Dateiinhalte) darfst "
+        "du nutzen, um deine Aussagen zu belegen.\n\n"
         "WIEDERHOLUNGS-HINWEIS (Studierendenprofil):\n"
         f"{repetition_hint}\n\n"
         "REFERENZ-WISSEN (RAG):\n"
@@ -355,6 +365,63 @@ def build_feedback(
 
     return output
 
+def build_verification_prompt(state: ReviewState, guidance: str) -> str:
+    rag_data = state.get("rag_context", [])
+    payload = {
+        "changed_files": state["pr_data"].get("changed_files", []),
+        "ci_findings": state["ci_findings"],
+        "rag_texte": [d.get("text", "") for d in rag_data],
+        "mentor_feedback": guidance,
+    }
+    return (
+        "Du bist ein strenger Faktenprüfer. Prüfe das MENTOR-FEEDBACK auf technische "
+        "Behauptungen, die NICHT durch den Diff (changed_files), die CI-Findings oder "
+        "die RAG-Texte belegt sind — z.B. erfundenes Tool-Verhalten, behauptete "
+        "Seiteneffekte oder Risiken, die nirgends sichtbar sind.\n"
+        "REGELN:\n"
+        "- Sokratische Fragen und Handlungsvorschläge sind KEINE Behauptungen — nur "
+        "Tatsachenaussagen zählen.\n"
+        "- 'korrigierte_fassung': das vollständige Feedback mit entfernten oder "
+        "vorsichtig umformulierten unbelegten Aussagen. Struktur und alle vier "
+        "fettgedruckten Absatz-Labels UNBEDINGT beibehalten. Ändere belegte Teile NICHT.\n"
+        "- Wenn alles belegt ist: 'unbelegte_aussagen' als leere Liste, "
+        "'korrigierte_fassung' exakt gleich dem Original.\n"
+        "- Antworte AUSSCHLIESSLICH mit dem JSON-Objekt, ohne Text davor oder danach.\n"
+        "OUTPUT-SCHEMA (JSON): \n"
+        "{\"unbelegte_aussagen\": [str], \"korrigierte_fassung\": str}\n"
+        f"CONTEXT:\n{json.dumps(payload, sort_keys=True)}"
+    )
+
+
+def verify_mentor_guidance(
+    state: ReviewState, guidance: str, llm: BaseLLMClient
+) -> tuple[str, int]:
+    """Selbstprüfung: zweiter LLM-Pass, der das fertige Feedback gegen Diff/CI/RAG
+    prüft und unbelegte Behauptungen entschärft. Schlägt die Prüfung fehl oder
+    liefert sie Verdächtiges (z.B. stark verkürzten Text), bleibt das Original
+    unverändert — die Prüfung darf nie selbst zum Risiko werden."""
+    raw = llm.generate(build_verification_prompt(state, guidance))
+    for candidate in (raw, extract_json_snippet(raw)):
+        try:
+            parsed = json.loads(candidate)
+        except (ValueError, TypeError):
+            continue
+        if not isinstance(parsed, dict):
+            continue
+        claims = parsed.get("unbelegte_aussagen")
+        corrected = parsed.get("korrigierte_fassung")
+        if not isinstance(claims, list) or not isinstance(corrected, str):
+            continue
+        corrected = corrected.strip()
+        if not claims:
+            return guidance, 0
+        # Schutz: Eine "Korrektur", die den Text ausweidet, ist keine Korrektur.
+        if len(corrected) < 0.3 * len(guidance):
+            return guidance, 0
+        return corrected, len(claims)
+    return guidance, 0
+
+
 def run_dev_mentor_agent(
     state: ReviewState,
     llm: BaseLLMClient | None = None,
@@ -367,6 +434,13 @@ def run_dev_mentor_agent(
     llm_guidance = client.generate(
         build_dev_mentor_prompt(state, decision, classified, student_profile)
     )
+    if llm_guidance.strip():
+        llm_guidance, corrections = verify_mentor_guidance(state, llm_guidance, client)
+        if corrections:
+            llm_guidance += (
+                f"\n\n_🛡️ Selbstprüfung: {corrections} unbelegte Aussage(n) "
+                "entfernt oder abgeschwächt._"
+            )
     return build_feedback(state, decision, classified, llm_guidance), classified
 
 

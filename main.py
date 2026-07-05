@@ -14,6 +14,7 @@ if str(SRC) not in sys.path:
 
 from codementor.api.dependencies import get_llm_client
 from codementor.config import get_config
+from codementor.context_gatherer import gather_context
 from codementor.db.engine import get_engine, init_db
 from codementor.graph import build_review_graph
 from codementor.github.client import GitHubClient, GitHubClientError
@@ -119,7 +120,10 @@ def run_github(
             config,
             refresh=rag_refresh,
         )
-    state = create_initial_state(pr_data, ci_findings, copilot_comments, rag_context)
+    gathered_context = gather_context(pr_data, client, owner, repo)
+    state = create_initial_state(
+        pr_data, ci_findings, copilot_comments, rag_context, gathered_context
+    )
     state = sync_learning_context(state)
     graph = build_review_graph(llm=llm_client)
     final_state = graph.invoke(state) # graph wird komplett ausgeführt
