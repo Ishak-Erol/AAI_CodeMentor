@@ -6,12 +6,16 @@ from typing import Iterable
 import httpx
 
 
+# Bewusst tiefe, spezifische Seiten statt Doku-Startseiten: index_documents()
+# holt nur die exakt angegebene URL, kein Crawling von Unterseiten — eine
+# Startseite wie "docs.python.org/3/" liefert daher kaum mehr als Navigation.
+# Diese Auswahl deckt sich mit DOC_LINKS in agents/dev_mentor.py.
 DEFAULT_DOC_URLS = [
-    "https://docs.python.org/3/",
-    "https://docs.astral.sh/ruff/",
-    "https://mypy.readthedocs.io/en/stable/",
-    "https://docs.pytest.org/en/stable/",
-    "https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions",
+    "https://docs.python.org/3/tutorial/errors.html",
+    "https://docs.astral.sh/ruff/rules/",
+    "https://mypy.readthedocs.io/en/stable/kinds_of_types.html",
+    "https://docs.pytest.org/en/stable/how-to/fixtures.html",
+    "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax",
 ]
 
 
@@ -47,7 +51,7 @@ def _extract_text_from_html(html: str) -> str:
 
 
 def fetch_url_text(url: str, timeout: float = 20.0) -> str:
-    response = httpx.get(url, timeout=timeout)
+    response = httpx.get(url, timeout=timeout, follow_redirects=True)
     response.raise_for_status()
     content_type = response.headers.get("content-type", "").lower()
     if "text/html" in content_type:

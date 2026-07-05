@@ -2,8 +2,24 @@
 {% if testat %}
 <ol class="testat-list panel">
     {% for question in questions %}
-    <li>{{ question.question }}
+    {% set idx = loop.index0 %}
+    {% set record = answers.get(idx) if answers else None %}
+    <li id="testat-q-{{ idx }}">
+        {{ question.question }}
         <span class="concept">Konzept: {{ question.concept }}</span>
+        {% if record %}
+        {% include "_testat_assessment.html" %}
+        {% else %}
+        <form hx-post="/threads/{{ thread.id }}/testat/answer" hx-target="#testat-q-{{ idx }}"
+              hx-swap="innerHTML" hx-indicator="#answer-spinner-{{ idx }}" class="testat-answer-form">
+            <input type="hidden" name="question_index" value="{{ idx }}">
+            <textarea name="answer" rows="3" placeholder="Deine Antwort..." required></textarea>
+            <div>
+                <button type="submit">Antwort abgeben</button>
+                <span id="answer-spinner-{{ idx }}" class="htmx-indicator" style="margin-left: 0.5rem; font-size: 0.8rem; color: var(--text-muted);">wird bewertet...</span>
+            </div>
+        </form>
+        {% endif %}
     </li>
     {% endfor %}
 </ol>

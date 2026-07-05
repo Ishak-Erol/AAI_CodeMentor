@@ -87,15 +87,41 @@ def build_dev_mentor_prompt(
     rag_data = state.get("rag_context", [])
     rag_summary = "\n".join([f"- {d['text']}" for d in rag_data]) if rag_data else "Kein zusätzlicher Kontext verfügbar."
 
-    # 2. Wiederholte Konzepte aus dem Studierendenprofil extrahieren
-    repeated_concepts = (student_profile or {}).get("repeated_concepts", [])
+    # 2. Lernstand aus dem Studierendenprofil ableiten. Wichtig: "mehrfach gesehen"
+    # heißt NICHT "verstanden" — nur bestandene Testat-Antworten belegen Verständnis.
+    profile = student_profile or {}
+    mastered = profile.get("mastered_concepts", [])
+    struggling = profile.get("struggling_concepts", [])
+    repeated_unproven = [
+        concept
+        for concept in profile.get("repeated_concepts", [])
+        if concept not in mastered and concept not in struggling
+    ]
+
+    hint_parts: list[str] = []
+    if mastered:
+        hint_parts.append(
+            f"NACHWEISLICH VERSTANDEN (im Testat belegt): {', '.join(mastered)}. "
+            "Hier darfst du vertiefende, anspruchsvollere Fragen stellen und Grundlagen "
+            "als bekannt voraussetzen."
+        )
+    if struggling:
+        hint_parts.append(
+            f"NOCH NICHT VERSTANDEN (im Testat nicht sicher beantwortet, obwohl schon "
+            f"behandelt): {', '.join(struggling)}. Hier ist Wiederholung KEIN Zeichen von "
+            "Wissen — erkläre einfacher und kleinschrittiger als beim letzten Mal, statt "
+            "zu vertiefen, und setze nichts als bekannt voraus."
+        )
+    if repeated_unproven:
+        hint_parts.append(
+            f"MEHRFACH GEZEIGT, ABER NOCH NICHT GEPRÜFT: {', '.join(repeated_unproven)}. "
+            "Knüpfe an die frühere Behandlung an ('wie beim letzten Review...'), aber setze "
+            "das Konzept nicht als beherrscht voraus."
+        )
     repetition_hint = (
-        f"Diese Konzepte wurden bei diesem Studierenden bereits mehrfach behandelt: "
-        f"{', '.join(repeated_concepts)}. Wenn du eine Frage zu einem dieser Konzepte stellst, "
-        "stelle eine vertiefende statt eine grundlegende Frage und erwähne kurz, dass das Thema "
-        "bereits bekannt ist, statt es neu einzuführen."
-        if repeated_concepts
-        else "Noch keine wiederholten Konzepte bei diesem Studierenden bekannt."
+        "\n".join(hint_parts)
+        if hint_parts
+        else "Noch kein Lernstand zu diesem Studierenden bekannt — behandle alle Konzepte als neu."
     )
 
     payload = {
@@ -205,6 +231,11 @@ def build_follow_up_prompt(
         "Review-Feedback in einem laufenden Thread beantwortet.\n"
         "RICHTLINIEN:\n"
         "- Antworte sokratisch: stelle Rückfragen, gib KEINE fertige Lösung vor.\n"
+        "- Wenn die NEUE FRAGE des Studierenden eine inhaltliche Antwort auf deine vorherige "
+        "Frage ist: Benenne ZUERST explizit, was an seiner Überlegung richtig ist (z.B. "
+        "'Genau — ...'), oder korrigiere behutsam und konkret, was nicht stimmt, BEVOR du "
+        "die nächste Frage stellst. Richtige Überlegungen dürfen nie unkommentiert bleiben — "
+        "der Studierende muss wissen, dass er auf dem richtigen Weg ist.\n"
         "- Beziehe dich auf das ursprüngliche Mentor-Feedback und die bisherige Historie.\n"
         "- Nutze das REFERENZ-WISSEN nur als allgemeine Hilfe, nicht als fertige Antwort.\n"
         "- WIEDERHOLE KEINE Frage, die in der BISHERIGEN HISTORIE bereits wortgleich oder "
@@ -347,6 +378,55 @@ def dev_mentor_agent_node(llm: BaseLLMClient | None = None):
         updated["copilot_comments"] = [
             comment.model_dump(exclude_none=True) for comment in classified_comments
         ]
+        return cast(ReviewState, updated)
+
+    return node
+
+
+def build_praise_prompt(state: ReviewState) -> str:
+    payload = {
+        "changed_files": state["pr_data"].get("changed_files", []),
+        "ci_findings": state["ci_findings"],
+    }
+    return (
+        "Du bist ein Mentor. Dieser Pull Request wurde bereits geprüft: CI ist grün und es "
+        "wurden KEINE Probleme gefunden — es gibt nichts zu beanstanden.\n"
+        "AUFGABE: Erkläre in 3-5 Sätzen, was an diesem PR konkret gut gelöst ist, damit der "
+        "Studierende sein gutes Vorgehen bewusst wiederholen kann (Lernen am positiven Beispiel).\n"
+        "REGELN:\n"
+        "- Beziehe dich NUR auf das, was in den geänderten Dateien tatsächlich sichtbar ist "
+        "(z.B. klare Benennung, sinnvolle Doku, saubere kleine Änderung) — erfinde nichts.\n"
+        "- ERFINDE keine Probleme und keine künstlichen 'Verbesserungsvorschläge' — der PR "
+        "ist in Ordnung, und das darf so stehen bleiben.\n"
+        "- Antworte in Markdown, ohne eigene Überschrift (die ergänzt das System).\n"
+        f"CONTEXT:\n{json.dumps(payload, sort_keys=True)}"
+    )
+
+
+def run_praise_agent(state: ReviewState, llm: BaseLLMClient | None = None) -> str:
+    """Lernen am positiven Beispiel: Wenn Reflection 'end' entscheidet (sauberer PR),
+    bekommt der Studierende eine kurze Würdigung statt eines leeren Threads."""
+    client = llm or MockLLMClient()
+    guidance = client.generate(build_praise_prompt(state)).strip()
+    if not guidance:
+        guidance = (
+            "Alle CI-Checks sind grün und die Änderungen sind sauber umgesetzt — "
+            "hier gibt es nichts zu beanstanden. Weiter so!"
+        )
+    return "\n\n".join(
+        [
+            "## ✅ Review ohne Beanstandungen",
+            f"**Betroffene Dateien:** `{_format_file_focus(state)}` | "
+            f"**CI-Status:** `{_format_ci_focus(state)}`",
+            guidance,
+        ]
+    )
+
+
+def praise_agent_node(llm: BaseLLMClient | None = None):
+    def node(state: ReviewState) -> ReviewState:
+        updated = deepcopy(state)
+        updated["mentor_feedback"] = run_praise_agent(state, llm=llm)
         return cast(ReviewState, updated)
 
     return node

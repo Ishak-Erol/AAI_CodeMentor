@@ -65,3 +65,14 @@ class RagCitation(SQLModel, table=True):
     source: str
     snippet: str
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
+class TestatAnswer(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    testat_id: int = Field(foreign_key="minitestat.id")
+    question_index: int
+    concept: str                       # denormalisiert für Profil-Aggregation pro Konzept
+    answer: str                        # Antwort des Studierenden
+    assessment: str                    # "verstanden" | "teilweise" | "nicht_verstanden"
+    feedback: str                      # Bewertungs-Begründung des Mentors
+    timestamp: datetime = Field(default_factory=datetime.utcnow)

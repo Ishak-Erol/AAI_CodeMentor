@@ -265,6 +265,18 @@ button:hover { background: #2563eb; }
     border: 1px solid var(--blue-border);
     color: var(--text);
 }
+.badge-progress.mastered {
+    background: var(--emerald-bg);
+    border: 1px solid var(--emerald-border);
+    color: var(--text);
+}
+.badge-progress.mastered em { color: var(--emerald); }
+.badge-progress.struggling {
+    background: var(--red-bg);
+    border: 1px solid var(--red-border);
+    color: var(--text);
+}
+.badge-progress.struggling em { color: var(--red); }
 .badge-progress em {
     font-style: normal;
     font-size: 0.65rem;
@@ -301,8 +313,54 @@ button:hover { background: #2563eb; }
 
 /* Testat */
 .testat-list { padding-left: 1.2rem; }
-.testat-list li { margin-bottom: 0.75rem; font-size: 0.9rem; }
+.testat-list li { margin-bottom: 1.25rem; font-size: 0.9rem; }
 .testat-list .concept { display: block; font-size: 0.75rem; color: var(--text-faint); margin-left: 0.2rem; }
+
+.testat-answer-form { margin-top: 0.6rem; }
+.testat-answer-form textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid #374151;
+    border-radius: 0.4rem;
+    padding: 0.5rem;
+    color: var(--text);
+    font-size: 0.9rem;
+    font-family: inherit;
+    margin-bottom: 0.5rem;
+    resize: vertical;
+}
+.testat-answer-form textarea:focus { outline: none; border-color: var(--blue); }
+
+.testat-assessment { margin-top: 0.6rem; }
+.testat-assessment .student-answer {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 0.4rem;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+}
+.testat-assessment .student-answer .label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+.testat-assessment .student-answer p { margin: 0.2rem 0 0; white-space: pre-wrap; }
+.testat-assessment .assessment-feedback {
+    margin: 0.4rem 0 0;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.badge-assessment {
+    display: inline-block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.3rem;
+}
+.badge-assessment.verstanden { background: var(--emerald-bg); border: 1px solid var(--emerald-border); color: var(--emerald); }
+.badge-assessment.teilweise { background: var(--amber-bg); border: 1px solid var(--amber-border); color: var(--amber); }
+.badge-assessment.nicht_verstanden { background: var(--red-bg); border: 1px solid var(--red-border); color: var(--red); }
 
 /* Markdown feedback content */
 .markdown-body h2 { font-size: 1.1rem; margin-top: 1.25rem; }

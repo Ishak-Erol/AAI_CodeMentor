@@ -64,10 +64,15 @@
     <h3>Dein bisheriger Fortschritt</h3>
     <div class="progress-badges">
         {% for concept, count in student_profile.seen_concepts.items() %}
-        <span class="badge-progress {% if concept in student_profile.repeated_concepts %}repeated{% endif %}">
-            {{ concept }} &times;{{ count }}
-            {% if concept in student_profile.repeated_concepts %}<em>bereits bekannt</em>{% endif %}
-        </span>
+        {% if concept in student_profile.mastered_concepts %}
+        <span class="badge-progress mastered">{{ concept }} &times;{{ count }} <em>verstanden &#10003;</em></span>
+        {% elif concept in student_profile.struggling_concepts %}
+        <span class="badge-progress struggling">{{ concept }} &times;{{ count }} <em>noch offen</em></span>
+        {% elif concept in student_profile.repeated_concepts %}
+        <span class="badge-progress repeated">{{ concept }} &times;{{ count }} <em>bereits gesehen</em></span>
+        {% else %}
+        <span class="badge-progress">{{ concept }} &times;{{ count }}</span>
+        {% endif %}
         {% endfor %}
     </div>
     <div style="font-size: 0.8rem; color: var(--text-faint); margin-top: 0.5rem;">

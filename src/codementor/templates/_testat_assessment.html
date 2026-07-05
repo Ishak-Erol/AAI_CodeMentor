@@ -1,0 +1,12 @@
+<div class="testat-assessment">
+    <div class="student-answer">
+        <span class="label">Deine Antwort:</span>
+        <p>{{ record.answer }}</p>
+    </div>
+    <span class="badge-assessment {{ record.assessment }}">
+        {% if record.assessment == "verstanden" %}Verstanden &#10003;
+        {% elif record.assessment == "teilweise" %}Teilweise verstanden
+        {% else %}Noch nicht verstanden{% endif %}
+    </span>
+    <p class="assessment-feedback">{{ record.feedback }}</p>
+</div>

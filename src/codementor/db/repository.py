@@ -14,6 +14,7 @@ from codementor.db.models import (
     PullRequest,
     RagCitation,
     ReviewThread,
+    TestatAnswer,
     ThreadMessage,
 )
 from codementor.models import LearningPoint as LearningPointModel
@@ -218,5 +219,52 @@ def get_thread_citations(thread_id: int) -> list[RagCitation]:
             select(RagCitation)
             .where(RagCitation.thread_id == thread_id)
             .order_by(RagCitation.timestamp)
+        )
+        return list(session.exec(statement).all())
+
+
+def save_testat_answer(
+    testat_id: int,
+    question_index: int,
+    concept: str,
+    answer: str,
+    assessment: str,
+    feedback: str,
+) -> TestatAnswer:
+    with get_session(_engine()) as session:
+        record = TestatAnswer(
+            testat_id=testat_id,
+            question_index=question_index,
+            concept=concept,
+            answer=answer,
+            assessment=assessment,
+            feedback=feedback,
+        )
+        session.add(record)
+        session.commit()
+        session.refresh(record)
+        return record
+
+
+def get_testat_answers(testat_id: int) -> list[TestatAnswer]:
+    with get_session(_engine()) as session:
+        statement = (
+            select(TestatAnswer)
+            .where(TestatAnswer.testat_id == testat_id)
+            .order_by(TestatAnswer.timestamp)
+        )
+        return list(session.exec(statement).all())
+
+
+def get_student_assessments(student_id: str) -> list[TestatAnswer]:
+    """All testat answers of one student, chronological — joined through
+    MiniTestat -> ReviewThread so assessments stay isolated per student."""
+    with get_session(_engine()) as session:
+        statement = (
+            select(TestatAnswer)
+            .join(MiniTestat, TestatAnswer.testat_id == MiniTestat.id)
+            .join(ReviewThread, MiniTestat.thread_id == ReviewThread.id)
+            .where(ReviewThread.student_id == student_id)
+            .order_by(TestatAnswer.timestamp)
         )
         return list(session.exec(statement).all())

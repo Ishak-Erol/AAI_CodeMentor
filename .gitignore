@@ -6,6 +6,7 @@ plan.md
 *.bin
 *.sqlite3
 *.db
+.codementor/
 SPRINT4_TICKETS.md
 deploy.md
 plan.md

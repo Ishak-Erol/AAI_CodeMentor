@@ -6,7 +6,7 @@ from typing import cast
 from langgraph.graph import END, StateGraph
 
 from codementor.agents.context_processor import analyze_context
-from codementor.agents.dev_mentor import dev_mentor_agent_node
+from codementor.agents.dev_mentor import dev_mentor_agent_node, praise_agent_node
 from codementor.agents.learning import learning_agent_node
 from codementor.agents.reflection import reflection_agent_node
 from codementor.llm import BaseLLMClient, MockLLMClient
@@ -51,6 +51,7 @@ def build_review_graph(llm: BaseLLMClient | None = None):
     graph.add_node("reflection_agent", reflection_agent_node(client))
     graph.add_node("dev_mentor_agent", dev_mentor_agent_node(client))
     graph.add_node("learning_agent", learning_agent_node(client))
+    graph.add_node("praise_agent", praise_agent_node(client))
 
     graph.set_entry_point("orchestrator")
     graph.add_conditional_edges(
@@ -64,7 +65,10 @@ def build_review_graph(llm: BaseLLMClient | None = None):
         {
             "dev_mentor": "dev_mentor_agent",
             "learning": "learning_agent",
-            "end": END,
+            # "end" heißt: sauberer PR, kein Eingreifen nötig. Statt eines leeren
+            # Threads würdigt der Praise-Node kurz, was gut gelöst ist (Lernen am
+            # positiven Beispiel) — er erzeugt keine Lernpunkte und kein Testat.
+            "end": "praise_agent",
         },
     )
     graph.add_conditional_edges(
@@ -73,4 +77,5 @@ def build_review_graph(llm: BaseLLMClient | None = None):
         {"learning": "learning_agent", "end": END},
     )
     graph.add_edge("learning_agent", END)
+    graph.add_edge("praise_agent", END)
     return graph.compile()

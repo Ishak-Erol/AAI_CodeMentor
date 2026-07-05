@@ -2,10 +2,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
+import logging
 from typing import Iterable
+
+import httpx
 
 from codementor.rag.embeddings import get_embedding_function
 from codementor.rag.sources import fetch_url_text
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -52,22 +58,45 @@ def _get_collection(persist_dir: str, embedding_function):
     )
 
 
+def _reset_collection(persist_dir: str, embedding_function):
+    """Deletes and recreates the collection rather than just clearing its
+    documents. A collection's embedding dimension is fixed at creation time —
+    if the embedding function changed since then (e.g. switching from the
+    256-dim hash fallback to a real 1024-dim API model), clearing documents
+    alone leaves a stale dimension constraint and the next `.add()` fails with
+    'expecting embedding with dimension of X, got Y'."""
+    import chromadb
+
+    client = chromadb.PersistentClient(path=persist_dir)
+    try:
+        client.delete_collection(name="codementor-docs")
+    except Exception:
+        pass
+    return client.get_or_create_collection(
+        name="codementor-docs",
+        embedding_function=embedding_function,
+    )
+
+
 def index_documents(
     urls: Iterable[str],
     persist_dir: str,
     embedding_function,
     refresh: bool = False,
 ) -> int:
-    collection = _get_collection(persist_dir, embedding_function)
-    if refresh:
-        existing = collection.get()
-        ids = existing.get("ids", [])
-        if ids:
-            collection.delete(ids=ids)
+    collection = (
+        _reset_collection(persist_dir, embedding_function)
+        if refresh
+        else _get_collection(persist_dir, embedding_function)
+    )
 
     added = 0
     for url in urls:
-        text = fetch_url_text(url)
+        try:
+            text = fetch_url_text(url)
+        except httpx.HTTPError as exc:
+            logger.warning("Skipping RAG source %s (fetch failed: %s)", url, exc)
+            continue
         for idx, chunk in enumerate(_chunk_text(text)):
             chunk_id = _make_chunk_id(url, idx, chunk)
             collection.add(

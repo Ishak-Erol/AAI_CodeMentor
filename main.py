@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,9 @@ from codementor.llm import LLMClientError
 from codementor.mock_loader import load_mock_review_state
 from codementor.models import parse_reflection_decision
 from codementor.rag import get_rag_context
+from codementor.rag.embeddings import get_embedding_function
+from codementor.rag.indexer import index_documents
+from codementor.rag.sources import ensure_doc_urls
 from codementor.review_service import persist_review_run, sync_learning_context
 from codementor.state import create_initial_state
 from codementor.tools.ci_tools import get_ci_results
@@ -137,9 +141,12 @@ def main() -> int:
     parser.add_argument(
         "command",
         nargs="?",
-        choices=["init-db"],
+        choices=["init-db", "refresh-rag"],
         default=None,
-        help="Optional subcommand. Use 'init-db' to create the SQLite schema and exit.",
+        help=(
+            "Optional subcommand. Use 'init-db' to create the SQLite schema and exit, "
+            "or 'refresh-rag' to re-index the RAG documentation sources and exit."
+        ),
     )
     parser.add_argument(
         "--mode",
@@ -171,6 +178,17 @@ def main() -> int:
         config = get_config()
         init_db(get_engine(config.db_path))
         print(f"Initialized database at {config.db_path}")
+        return 0
+
+    if args.command == "refresh-rag":
+        logging.basicConfig(level=logging.WARNING, format="%(message)s")
+        config = get_config()
+        embedding_function = get_embedding_function(config)
+        urls = ensure_doc_urls(config.rag_doc_urls)
+        added = index_documents(urls, config.rag_path, embedding_function, refresh=True)
+        print(f"Re-indexed into {config.rag_path} ({added} chunk(s) total) from:")
+        for url in urls:
+            print(f"  - {url}")
         return 0
 
     config = get_config()
