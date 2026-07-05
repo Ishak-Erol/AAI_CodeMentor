@@ -10,7 +10,11 @@ DEFAULT_ARTIFACT_NAME = "codementor-analysis"
 DEFAULT_RAG_PATH = ".codementor/rag"
 DEFAULT_RAG_TOP_K = 4
 DEFAULT_LLM_BASE_URL = "https://chat-ai.academiccloud.de/v1"
-DEFAULT_LLM_MODEL = "meta-llama-3.1-8b-instruct"
+# devstral-2: auf der AcademicCloud für "Coding, agentic tasks" ausgewiesen —
+# hält JSON-Schemata deutlich zuverlässiger ein als das frühere 8B-Modell und
+# erklärt Konzepte fachlich korrekt (beides verifiziert gegen die Live-API).
+DEFAULT_LLM_MODEL = "devstral-2-123b-instruct-2512"
+DEFAULT_LLM_TEMPERATURE = 0.2
 DEFAULT_EMBED_MODEL = "multilingual-e5-large-instruct"
 DEFAULT_DB_PATH = "codementor.db"
 
@@ -29,6 +33,7 @@ class AppConfig:
     llm_api_key: str | None
     llm_base_url: str
     llm_model: str
+    llm_temperature: float
     embed_model: str
     llm_enabled: bool
     rag_use_api_embeddings: bool
@@ -72,6 +77,9 @@ def get_config() -> AppConfig:
         llm_api_key=api_key,
         llm_base_url=os.getenv("CODEMENTOR_LLM_BASE_URL", DEFAULT_LLM_BASE_URL),
         llm_model=os.getenv("CODEMENTOR_LLM_MODEL", DEFAULT_LLM_MODEL),
+        llm_temperature=float(
+            os.getenv("CODEMENTOR_LLM_TEMPERATURE", str(DEFAULT_LLM_TEMPERATURE))
+        ),
         embed_model=os.getenv("CODEMENTOR_EMBED_MODEL", DEFAULT_EMBED_MODEL),
         llm_enabled=_parse_bool(os.getenv("CODEMENTOR_LLM_ENABLED")),
         rag_use_api_embeddings=_parse_bool(

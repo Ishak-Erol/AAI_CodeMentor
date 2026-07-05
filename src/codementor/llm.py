@@ -27,7 +27,8 @@ class OpenAICompatibleLLMClient(BaseLLMClient):
         api_key: str | None,
         base_url: str,
         model: str,
-        timeout: float = 30.0,
+        timeout: float = 60.0,
+        temperature: float = 0.2,
     ) -> None:
         if not api_key:
             raise LLMClientError("API_KEY is required for live LLM usage.")
@@ -35,6 +36,7 @@ class OpenAICompatibleLLMClient(BaseLLMClient):
         self._base_url = base_url.rstrip("/")
         self._model = model
         self._timeout = timeout
+        self._temperature = temperature
 
     def generate(self, prompt: str) -> str:
         url = f"{self._base_url}/chat/completions"
@@ -50,7 +52,7 @@ class OpenAICompatibleLLMClient(BaseLLMClient):
                 },
                 {"role": "user", "content": prompt},
             ],
-            "temperature": 0.2,
+            "temperature": self._temperature,
         }
         logger.info("LLM request %s", url)
         try:

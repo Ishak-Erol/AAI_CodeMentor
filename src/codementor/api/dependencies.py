@@ -15,4 +15,5 @@ def get_llm_client(
         api_key=config.llm_api_key,
         base_url=config.llm_base_url,
         model=config.llm_model,
+        temperature=config.llm_temperature,
     )
