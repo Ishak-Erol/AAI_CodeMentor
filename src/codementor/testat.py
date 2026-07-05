@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from codementor.db.models import LearningPoint, MiniTestat, TestatAnswer
+from codementor.db.models import MiniTestat, TestatAnswer
 from codementor.db.repository import (
     get_recent_learning_points,
     get_thread,
@@ -13,41 +13,101 @@ from codementor.db.repository import (
 )
 from codementor.llm import BaseLLMClient, MockLLMClient
 from codementor.models import extract_json_snippet
+from codementor.student_profile import summarize_student_profile
 
 VALID_ASSESSMENTS = {"verstanden", "teilweise", "nicht_verstanden"}
 
 
-def build_testat_prompt(points: list[LearningPoint]) -> str:
-    concepts = [
-        {"concept": point.concept, "difficulty": point.difficulty, "reason": point.reason}
-        for point in points
-    ]
+def _build_testat_entries(student_id: str) -> list[dict[str, str]]:
+    """Stellt die Konzept-Kandidaten fürs Testat zusammen, lernstand-gesteuert:
+
+    1. Offene Konzepte (im letzten Testat/Chat "nicht verstanden") kommen ZUERST
+       als Wiederholungsfragen — ein offenes Konzept ohne zweite Chance wäre
+       eine tote Remediation-Schleife.
+    2. Bereits nachweislich verstandene Konzepte werden NICHT erneut geprüft.
+    3. Danach neue, noch ungeprüfte Konzepte aus den letzten Reviews.
+    """
+    profile = summarize_student_profile(student_id)
+    struggling = list(profile.get("struggling_concepts", []))
+    mastered = set(profile.get("mastered_concepts", []))
+
+    recent_by_concept: dict[str, Any] = {}
+    for point in get_recent_learning_points(student_id, limit_threads=3):
+        if point.kind != "learning_point":
+            continue
+        recent_by_concept.setdefault(point.concept, point)
+
+    entries: list[dict[str, str]] = []
+    for concept in struggling:
+        point = recent_by_concept.get(concept)
+        entries.append(
+            {
+                "concept": concept,
+                "difficulty": point.difficulty if point else "medium",
+                "reason": "Beim letzten Testat/Chat noch nicht sicher beantwortet.",
+                "status": "wiederholung",
+            }
+        )
+    for concept, point in recent_by_concept.items():
+        if concept in mastered or concept in struggling:
+            continue
+        entries.append(
+            {
+                "concept": concept,
+                "difficulty": point.difficulty,
+                "reason": point.reason,
+                "status": "neu",
+            }
+        )
+
+    if not entries:
+        # Alles gemeistert (oder gar keine Punkte): Auffrischung statt leerem Testat
+        entries = [
+            {
+                "concept": point.concept,
+                "difficulty": point.difficulty,
+                "reason": point.reason,
+                "status": "neu",
+            }
+            for point in recent_by_concept.values()
+        ]
+    return entries
+
+
+def build_testat_prompt(entries: list[dict[str, str]]) -> str:
     return (
         "Du bist ein Experte für Wissensüberprüfung. Erzeuge ein Mini-Testat mit "
         "2-3 offenen Prüfungsfragen zu den folgenden Lernkonzepten.\n"
         "REGELN:\n"
         "- Erzeuge zwischen 2 und 3 Fragen.\n"
+        "- Konzepte mit status='wiederholung' wurden zuvor NICHT sicher beantwortet: "
+        "Stelle zu diesen ZUERST je eine Frage, und zwar aus einem NEUEN Blickwinkel "
+        "(nicht dieselbe Formulierung wie eine frühere Frage), damit echtes Verständnis "
+        "geprüft wird statt Wiedererkennen.\n"
         "- Jede Frage ist offen formuliert (keine Multiple-Choice) und bezieht sich "
         "auf ein konkretes Konzept aus dem CONTEXT.\n"
         "- Antworte AUSSCHLIESSLICH mit dem JSON-Array, ohne einleitenden oder erklärenden "
         "Text davor oder danach, und ohne Markdown-Codeblock.\n"
         "OUTPUT-SCHEMA (JSON): \n"
         "[{\"concept\": str, \"question\": str}]\n"
-        f"CONTEXT:\n{json.dumps(concepts, sort_keys=True)}"
+        f"CONTEXT:\n{json.dumps(entries, sort_keys=True)}"
     )
 
 
-def _fallback_questions(points: list[LearningPoint]) -> list[dict[str, str]]:
-    fallback = [
-        {
-            "concept": point.concept,
-            "question": (
-                f"Erkläre das Konzept '{point.concept}' und wie du es im "
+def _fallback_questions(entries: list[dict[str, str]]) -> list[dict[str, str]]:
+    fallback = []
+    for entry in entries[:3]:
+        if entry.get("status") == "wiederholung":
+            question = (
+                f"Beim letzten Mal blieb '{entry['concept']}' noch offen: Erkläre das "
+                "Konzept in eigenen Worten und nenne ein konkretes Beispiel aus deinem Code."
+            )
+        else:
+            question = (
+                f"Erkläre das Konzept '{entry['concept']}' und wie du es im "
                 "Review-Kontext angewendet hast."
-            ),
-        }
-        for point in points[:3]
-    ]
+            )
+        fallback.append({"concept": entry["concept"], "question": question})
     if not fallback:
         fallback.append(
             {
@@ -62,7 +122,7 @@ def _fallback_questions(points: list[LearningPoint]) -> list[dict[str, str]]:
 
 
 def _parse_testat_questions(
-    raw_output: str, points: list[LearningPoint]
+    raw_output: str, entries: list[dict[str, str]]
 ) -> list[dict[str, str]]:
     try:
         parsed = json.loads(raw_output)
@@ -70,10 +130,10 @@ def _parse_testat_questions(
         try:
             parsed = json.loads(extract_json_snippet(raw_output))
         except (ValueError, TypeError):
-            return _fallback_questions(points)
+            return _fallback_questions(entries)
 
     if not isinstance(parsed, list):
-        return _fallback_questions(points)
+        return _fallback_questions(entries)
 
     questions: list[dict[str, str]] = []
     for item in parsed:
@@ -87,7 +147,7 @@ def _parse_testat_questions(
         )
 
     if len(questions) < 2:
-        return _fallback_questions(points)
+        return _fallback_questions(entries)
     return questions[:3]
 
 
@@ -102,11 +162,11 @@ def generate_testat(
     if not any(point.kind == "testat_suggestion" for point in thread_points):
         return None
 
-    points = get_recent_learning_points(thread.student_id, limit_threads=3)
+    entries = _build_testat_entries(thread.student_id)
 
     client = llm or MockLLMClient()
-    raw_output = client.generate(build_testat_prompt(points))
-    questions: list[dict[str, Any]] = _parse_testat_questions(raw_output, points)
+    raw_output = client.generate(build_testat_prompt(entries))
+    questions: list[dict[str, Any]] = _parse_testat_questions(raw_output, entries)
 
     return save_mini_testat(thread_id, questions)
 

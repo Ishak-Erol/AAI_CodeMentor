@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Lernreise: {{ student_id }} | Team CodeMentor{% endblock %}
+{% block content %}
+<a href="/threads">&larr; Zurück zur Liste</a>
+
+<h2 class="page-title" style="margin-top: 0.5rem;">Lernreise von {{ student_id }}</h2>
+
+<div class="journey-stats">
+    <div class="stat-tile">
+        <span class="stat-value">{{ profile.total_threads }}</span>
+        <span class="stat-label">Reviews</span>
+    </div>
+    <div class="stat-tile">
+        <span class="stat-value">{{ concepts | length }}</span>
+        <span class="stat-label">Konzepte behandelt</span>
+    </div>
+    <div class="stat-tile mastered">
+        <span class="stat-value">{{ profile.mastered_concepts | length }}</span>
+        <span class="stat-label">verstanden &#10003;</span>
+    </div>
+    <div class="stat-tile struggling">
+        <span class="stat-value">{{ profile.struggling_concepts | length }}</span>
+        <span class="stat-label">noch offen</span>
+    </div>
+</div>
+
+<section class="panel" style="margin-top: 1.5rem;">
+    <h3>Konzepte</h3>
+    {% if concepts %}
+    <table class="journey-table">
+        <thead>
+            <tr>
+                <th>Konzept</th>
+                <th>Behandelt</th>
+                <th>Status</th>
+                <th>Letzte Prüfung</th>
+                <th>Verlauf</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for concept in concepts %}
+            <tr>
+                <td>{{ concept.name }}</td>
+                <td>&times;{{ concept.count }}</td>
+                <td><span class="badge-progress {{ concept.status }}">{{ concept.status_label }}</span></td>
+                <td>
+                    {% if concept.last %}
+                    {{ concept.last.assessment | replace("_", " ") }}
+                    <span class="muted">({{ concept.last.source }}, {{ concept.last.timestamp.strftime("%d.%m.%Y") }})</span>
+                    {% else %}
+                    <span class="muted">noch nicht geprüft</span>
+                    {% endif %}
+                </td>
+                <td class="history-dots">
+                    {% for assessment in concept.history %}
+                    <span class="dot {{ assessment }}" title="{{ assessment | replace('_', ' ') }}"></span>
+                    {% endfor %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="muted" style="font-style: italic;">Noch keine Lernpunkte erfasst.</p>
+    {% endif %}
+</section>
+
+<section class="panel" style="margin-top: 1.5rem;">
+    <h3>Review-Verlauf</h3>
+    <ol class="journey-threads">
+        {% for thread in threads %}
+        <li>
+            <a href="/threads/{{ thread.id }}">Thread #{{ thread.id }}</a>
+            <span class="tag">{{ thread.primary_issue }}</span>
+            <span class="tag severity-{{ thread.severity }}">{{ thread.severity }}</span>
+            <span class="muted">{{ thread.created_at.strftime("%d.%m.%Y %H:%M") }}</span>
+        </li>
+        {% endfor %}
+    </ol>
+</section>
+{% endblock %}

@@ -362,6 +362,61 @@ button:hover { background: #2563eb; }
 .badge-assessment.teilweise { background: var(--amber-bg); border: 1px solid var(--amber-border); color: var(--amber); }
 .badge-assessment.nicht_verstanden { background: var(--red-bg); border: 1px solid var(--red-border); color: var(--red); }
 
+/* Lernreise (Student Journey) */
+.muted { color: var(--text-faint); font-size: 0.8rem; }
+
+.journey-stats { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.5rem; }
+.stat-tile {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 0.6rem;
+    padding: 0.75rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    min-width: 7rem;
+}
+.stat-tile .stat-value { font-size: 1.4rem; font-weight: 700; color: white; }
+.stat-tile .stat-label { font-size: 0.75rem; color: var(--text-muted); }
+.stat-tile.mastered { border-color: var(--emerald-border); }
+.stat-tile.mastered .stat-value { color: var(--emerald); }
+.stat-tile.struggling { border-color: var(--red-border); }
+.stat-tile.struggling .stat-value { color: var(--red); }
+
+.journey-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.journey-table th {
+    text-align: left;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid var(--border);
+}
+.journey-table td { padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--border); }
+.journey-table tr:last-child td { border-bottom: none; }
+
+.history-dots .dot {
+    display: inline-block;
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 50%;
+    margin-right: 0.25rem;
+    background: var(--text-faint);
+}
+.history-dots .dot.verstanden { background: var(--emerald); }
+.history-dots .dot.teilweise { background: var(--amber); }
+.history-dots .dot.nicht_verstanden { background: var(--red); }
+
+.journey-threads { list-style: none; margin: 0; padding: 0; }
+.journey-threads li {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+    font-size: 0.9rem;
+}
+.journey-threads li:last-child { border-bottom: none; }
+
 /* Markdown feedback content */
 .markdown-body h2 { font-size: 1.1rem; margin-top: 1.25rem; }
 .markdown-body h3 { font-size: 1rem; margin-top: 1rem; }

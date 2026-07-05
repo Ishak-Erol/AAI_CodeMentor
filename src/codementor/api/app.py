@@ -55,9 +55,11 @@ async def handle_value_error(request: Request, exc: ValueError) -> HTMLResponse:
 
 
 from codementor.api.routes.review import router as review_router  # noqa: E402
+from codementor.api.routes.students import router as students_router  # noqa: E402
 from codementor.api.routes.testat import router as testat_router  # noqa: E402
 from codementor.api.routes.threads import router as threads_router  # noqa: E402
 
 app.include_router(review_router)
 app.include_router(threads_router)
 app.include_router(testat_router)
+app.include_router(students_router)
