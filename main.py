@@ -185,12 +185,21 @@ def main() -> int:
         return 0
 
     if args.command == "refresh-rag":
-        logging.basicConfig(level=logging.WARNING, format="%(message)s")
+        logging.basicConfig(level=logging.INFO, format="%(message)s")
         config = get_config()
         embedding_function = get_embedding_function(config)
         urls = ensure_doc_urls(config.rag_doc_urls)
-        added = index_documents(urls, config.rag_path, embedding_function, refresh=True)
-        print(f"Re-indexed into {config.rag_path} ({added} chunk(s) total) from:")
+        added = index_documents(
+            urls,
+            config.rag_path,
+            embedding_function,
+            refresh=True,
+            max_pages_per_source=config.rag_max_pages,
+        )
+        print(
+            f"Re-indexed into {config.rag_path}: {added} chunk(s), "
+            f"max. {config.rag_max_pages} Seite(n) pro Quelle:"
+        )
         for url in urls:
             print(f"  - {url}")
         return 0

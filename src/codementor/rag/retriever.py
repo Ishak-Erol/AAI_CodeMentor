@@ -84,7 +84,12 @@ def retrieve_context(
     persist_dir: str,
     top_k: int,
     embedding_function=None,
+    max_distance: float | None = None,
 ) -> list[dict[str, Any]]:
+    """Semantische Suche mit optionaler Relevanz-Schwelle: Treffer, deren
+    Distanz über `max_distance` liegt, werden verworfen — lieber ehrlich keine
+    Quelle zurückgeben als eine thematisch unpassende als Beleg auszuweisen.
+    `max_distance` <= 0 oder None deaktiviert den Filter."""
     if not query:
         return []
     embed_fn = embedding_function or SimpleHashEmbeddingFunction()
@@ -92,12 +97,23 @@ def retrieve_context(
     results = collection.query(query_texts=[query], n_results=top_k)
     documents = results.get("documents", [[]])[0]
     metadatas = results.get("metadatas", [[]])[0]
+    distances = (results.get("distances") or [[]])[0]
+    if len(distances) < len(documents):
+        distances = list(distances) + [None] * (len(documents) - len(distances))
     context: list[dict[str, Any]] = []
-    for doc, meta in zip(documents, metadatas, strict=False):
+    for doc, meta, distance in zip(documents, metadatas, distances, strict=False):
+        if (
+            max_distance is not None
+            and max_distance > 0
+            and distance is not None
+            and distance > max_distance
+        ):
+            continue
         context.append(
             {
                 "source": meta.get("source") if isinstance(meta, dict) else None,
                 "text": doc,
+                "distance": distance,
             }
         )
     return context
@@ -113,11 +129,23 @@ def get_rag_context(
     embedding_function = get_embedding_function(config)
     urls = ensure_doc_urls(config.rag_doc_urls)
     if refresh:
-        index_documents(urls, config.rag_path, embedding_function, refresh=True)
+        index_documents(
+            urls,
+            config.rag_path,
+            embedding_function,
+            refresh=True,
+            max_pages_per_source=config.rag_max_pages,
+        )
     else:
         collection = _get_collection(config.rag_path, embedding_function)
         if collection.count() == 0:
-            index_documents(urls, config.rag_path, embedding_function, refresh=False)
+            index_documents(
+                urls,
+                config.rag_path,
+                embedding_function,
+                refresh=False,
+                max_pages_per_source=config.rag_max_pages,
+            )
 
     query = build_query(pr_data, ci_findings, copilot_comments)
     return retrieve_context(
@@ -125,4 +153,5 @@ def get_rag_context(
         config.rag_path,
         config.rag_top_k,
         embedding_function=embedding_function,
+        max_distance=config.rag_max_distance,
     )

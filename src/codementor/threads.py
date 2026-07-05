@@ -27,16 +27,34 @@ logger = logging.getLogger(__name__)
 VALID_OBSERVATION_VERDICTS = {"verstanden", "teilweise", "nicht_verstanden"}
 
 
-def _retrieve_rag_results(question: str) -> list[dict[str, Any]]:
+MIN_RAG_QUERY_CHARS = 20
+
+
+def _build_rag_query(question: str, prior_messages: list[ThreadMessage]) -> str:
+    """Baut die Retrieval-Query aus der neuen Nachricht PLUS der letzten
+    Mentor-Frage. Kurznachrichten wie "hi" oder "verstehe ich nicht" tragen
+    selbst kein Thema — das Thema steckt in der Frage, auf die sie antworten.
+    Ohne Themenbezug (zu kurze Query) wird gar nicht abgerufen, statt
+    Zufallstreffer als "Quellen" auszuweisen."""
+    mentor_messages = [
+        m for m in prior_messages if m.role == "mentor" and m.content.strip()
+    ]
+    topic = mentor_messages[-1].content[:300] if mentor_messages else ""
+    query = f"{question} {topic}".strip()
+    return query if len(query) >= MIN_RAG_QUERY_CHARS else ""
+
+
+def _retrieve_rag_results(query: str) -> list[dict[str, Any]]:
     config = get_config()
-    if not config.rag_enabled:
+    if not config.rag_enabled or not query:
         return []
     embedding_function = get_embedding_function(config)
     return retrieve_context(
-        query=question,
+        query=query,
         persist_dir=config.rag_path,
         top_k=2,
         embedding_function=embedding_function,
+        max_distance=config.rag_max_distance,
     )
 
 
@@ -140,7 +158,7 @@ def answer_follow_up(
 
     save_thread_message(thread_id, role="student", content=question)
 
-    rag_results = _retrieve_rag_results(question)
+    rag_results = _retrieve_rag_results(_build_rag_query(question, prior_messages))
     rag_summary = _summarize_rag_results(rag_results)
     client = llm or MockLLMClient()
     prompt = build_follow_up_prompt(

@@ -197,8 +197,14 @@ def save_rag_citations(
 ) -> list[RagCitation]:
     with get_session(_engine()) as session:
         saved: list[RagCitation] = []
+        seen_sources: set[str] = set()
         for item in rag_context:
             source = str(item.get("source") or "unbekannte Quelle")
+            # Mehrere Chunks derselben Seite -> nur eine Zitat-Zeile pro Quelle,
+            # sonst listet die UI dieselbe URL mehrfach.
+            if source in seen_sources:
+                continue
+            seen_sources.add(source)
             snippet = str(item.get("text") or "")[:500]
             citation = RagCitation(
                 thread_id=thread_id,

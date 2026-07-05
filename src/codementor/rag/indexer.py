@@ -5,13 +5,16 @@ import hashlib
 import logging
 from typing import Iterable
 
-import httpx
-
 from codementor.rag.embeddings import get_embedding_function
-from codementor.rag.sources import fetch_url_text
+from codementor.rag.sources import crawl_source
 
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_MAX_PAGES_PER_SOURCE = 15
+# Embedding-APIs kappen große Payloads (Connection-Reset bei Seiten mit 100+
+# Chunks in einem Request) — deshalb in kleinen Batches einfügen.
+EMBED_BATCH_SIZE = 32
 
 
 @dataclass(frozen=True)
@@ -83,6 +86,7 @@ def index_documents(
     persist_dir: str,
     embedding_function,
     refresh: bool = False,
+    max_pages_per_source: int = DEFAULT_MAX_PAGES_PER_SOURCE,
 ) -> int:
     collection = (
         _reset_collection(persist_dir, embedding_function)
@@ -92,19 +96,37 @@ def index_documents(
 
     added = 0
     for url in urls:
-        try:
-            text = fetch_url_text(url)
-        except httpx.HTTPError as exc:
-            logger.warning("Skipping RAG source %s (fetch failed: %s)", url, exc)
-            continue
-        for idx, chunk in enumerate(_chunk_text(text)):
-            chunk_id = _make_chunk_id(url, idx, chunk)
-            collection.add(
-                ids=[chunk_id],
-                documents=[chunk],
-                metadatas=[{"source": url, "chunk_index": idx}],
-            )
-            added += 1
+        pages = crawl_source(url, max_pages=max_pages_per_source)
+        for page_url, text in pages:
+            chunks = _chunk_text(text)
+            if not chunks:
+                continue
+            # `source` ist die exakte Seiten-URL, damit Zitate direkt auf die
+            # richtige Unterseite verlinken.
+            for start in range(0, len(chunks), EMBED_BATCH_SIZE):
+                batch = chunks[start : start + EMBED_BATCH_SIZE]
+                try:
+                    collection.add(
+                        ids=[
+                            _make_chunk_id(page_url, start + idx, chunk)
+                            for idx, chunk in enumerate(batch)
+                        ],
+                        documents=batch,
+                        metadatas=[
+                            {
+                                "source": page_url,
+                                "chunk_index": start + idx,
+                                "root_source": url,
+                            }
+                            for idx in range(len(batch))
+                        ],
+                    )
+                    added += len(batch)
+                except Exception as exc:  # noqa: BLE001 — eine Seite darf ausfallen
+                    logger.warning(
+                        "Batch für %s übersprungen (%s)", page_url, exc
+                    )
+        logger.info("Indexed %s (%d Seite(n))", url, len(pages))
     return added
 
 
