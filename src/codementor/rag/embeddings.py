@@ -84,22 +84,39 @@ class OpenAICompatibleEmbeddingFunction:
             "model": self._model,
             "encoding_format": "float",
         }
-        response = httpx.post(
-            url,
-            json=payload,
-            headers={
-                "Authorization": f"Bearer {self._api_key}",
-                "Accept": "application/json",
-            },
-            timeout=self._timeout,
-        )
-        if response.status_code >= 400:
-            raise RuntimeError(
-                f"Embedding API request failed with status {response.status_code}: "
-                f"{response.text}"
-            )
-        data = response.json()
-        return _extract_embeddings(data)
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Accept": "application/json",
+        }
+        # Ein Retry bei transienten Fehlern (5xx/Netz) — die AcademicCloud-API
+        # antwortet gelegentlich sporadisch mit 500.
+        last_error: Exception | None = None
+        for attempt in (1, 2):
+            try:
+                response = httpx.post(
+                    url, json=payload, headers=headers, timeout=self._timeout
+                )
+            except httpx.HTTPError as exc:
+                last_error = exc
+                logger.warning("Embedding-Request fehlgeschlagen (Versuch %d): %s", attempt, exc)
+                continue
+            if response.status_code >= 500:
+                last_error = RuntimeError(
+                    f"Embedding API request failed with status {response.status_code}: "
+                    f"{response.text[:200]}"
+                )
+                logger.warning(
+                    "Embedding-API %d (Versuch %d)", response.status_code, attempt
+                )
+                continue
+            if response.status_code >= 400:
+                raise RuntimeError(
+                    f"Embedding API request failed with status {response.status_code}: "
+                    f"{response.text[:200]}"
+                )
+            data = response.json()
+            return _extract_embeddings(data)
+        raise RuntimeError(f"Embedding API unavailable after retry: {last_error}")
 
 def _extract_embeddings(payload: dict[str, Any]) -> list[list[float]]:
     items = payload.get("data")

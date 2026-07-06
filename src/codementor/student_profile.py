@@ -28,7 +28,14 @@ def get_student_learning_history(student_id: str) -> list[LearningPoint]:
 
 def summarize_student_profile(student_id: str) -> dict[str, Any]:
     history = get_student_learning_history(student_id)
-    seen_concepts = dict(Counter(point.concept for point in history))
+    # Nur echte Lernpunkte zählen — der interne "testat_suggestion"-Marker ist
+    # ein Trigger, kein Lerninhalt, und darf weder im Fortschritt noch in den
+    # Prompt-Hinweisen auftauchen.
+    seen_concepts = dict(
+        Counter(
+            point.concept for point in history if point.kind == "learning_point"
+        )
+    )
     repeated_concepts = [
         concept for concept, count in seen_concepts.items() if count > 1
     ]

@@ -64,6 +64,7 @@ def run_mock(
         pr_number=0,
         title=pr_metadata.get("title", ""),
         final_state=result,
+        llm=llm_client,
     )
     result["thread_id"] = thread.id
     return result
@@ -135,6 +136,7 @@ def run_github(
         pr_number=pr_number,
         title=pr_data.get("metadata", {}).get("title", ""),
         final_state=result,
+        llm=llm_client,
     )
     result["thread_id"] = thread.id
     return result

@@ -35,7 +35,7 @@
     <section class="panel">
         <h3>Lernpunkte</h3>
         <ul class="learning-points">
-            {% for point in learning_points %}
+            {% for point in learning_points if point.kind != "testat_suggestion" %}
             <li>
                 <span>{{ point.concept }}</span>
                 <span class="badge-difficulty {{ point.difficulty }}">{{ point.difficulty }}</span>

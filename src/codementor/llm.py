@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from abc import ABC, abstractmethod
 import logging
 from typing import Any
@@ -55,30 +56,50 @@ class OpenAICompatibleLLMClient(BaseLLMClient):
             "temperature": self._temperature,
         }
         logger.info("LLM request %s", url)
-        try:
-            response = httpx.post(
-                url,
-                json=payload,
-                headers={
-                    "Authorization": f"Bearer {self._api_key}",
-                    "Accept": "application/json",
-                },
-                timeout=self._timeout,
-            )
-        except httpx.HTTPError as exc:
-            raise LLMClientError("Network error while calling LLM API.") from exc
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Accept": "application/json",
+        }
+        # Retries bei transienten Fehlern (5xx/Netz) — die AcademicCloud-API
+        # antwortet gelegentlich sporadisch mit 500. Das LLM ist (anders als RAG)
+        # nicht optional: Schlägt auch der letzte Versuch fehl, gibt es einen
+        # sauberen LLMClientError, den die UI als Fehlermeldung rendert.
+        last_error: str = "unknown"
+        for attempt in (1, 2, 3):
+            if attempt > 1:
+                time.sleep(1.5 * (attempt - 1))
+            try:
+                response = httpx.post(
+                    url, json=payload, headers=headers, timeout=self._timeout
+                )
+            except httpx.HTTPError as exc:
+                last_error = f"Network error while calling LLM API ({exc})."
+                logger.warning("LLM-Request fehlgeschlagen (Versuch %d): %s", attempt, exc)
+                continue
 
-        if response.status_code >= 400:
-            raise LLMClientError(
-                f"LLM API request failed with status {response.status_code}."
-            )
+            if response.status_code >= 500:
+                last_error = (
+                    f"LLM API request failed with status {response.status_code}."
+                )
+                logger.warning("LLM-API %d (Versuch %d)", response.status_code, attempt)
+                continue
+            if response.status_code >= 400:
+                raise LLMClientError(
+                    f"LLM API request failed with status {response.status_code}."
+                )
 
-        try:
-            data = response.json()
-        except ValueError as exc:
-            raise LLMClientError("LLM API returned invalid JSON.") from exc
+            try:
+                data = response.json()
+            except ValueError as exc:
+                raise LLMClientError("LLM API returned invalid JSON.") from exc
 
-        return _extract_message_content(data)
+            return _extract_message_content(data)
+
+        raise LLMClientError(
+            f"LLM API nicht erreichbar (3 Versuche): {last_error} "
+            "Vermutlich eine vorübergehende Störung der AcademicCloud — "
+            "bitte in ein paar Minuten erneut versuchen."
+        )
 
 
 def _extract_message_content(payload: dict[str, Any]) -> str:

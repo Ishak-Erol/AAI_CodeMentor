@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any, Iterable
 
 from codementor.config import AppConfig
@@ -7,6 +8,9 @@ from codementor.rag.embeddings import get_embedding_function, SimpleHashEmbeddin
 from codementor.rag.indexer import index_documents
 from codementor.rag.sources import ensure_doc_urls
 from codementor.rag.topics import ensure_topic_sources
+
+
+logger = logging.getLogger(__name__)
 
 
 def _get_collection(persist_dir: str, embedding_function):
@@ -69,8 +73,12 @@ def build_query(
             continue
         parts.append(f"{tool} findings")
         for item in findings[:5]:
-            message = item.get("message") or item.get("comment") or ""
-            parts.append(str(message))
+            message = str(item.get("message") or item.get("comment") or "")
+            # Nur das ENDE der Meldung: Bei pytest-Tracebacks steht der
+            # Fehlertyp in der letzten Zeile — der volle Output davor matcht
+            # sonst embeddings-seitig auf Doku-Seiten mit Beispiel-Testausgaben
+            # ("FAILURES ...") statt auf erklärende Inhalte.
+            parts.append(message[-200:])
 
     for comment in copilot_comments[:5]:
         parts.append(str(comment.get("comment") or ""))
@@ -127,37 +135,44 @@ def get_rag_context(
     config: AppConfig,
     refresh: bool = False,
 ) -> list[dict[str, Any]]:
-    embedding_function = get_embedding_function(config)
-    urls = ensure_doc_urls(config.rag_doc_urls)
-    if refresh:
-        index_documents(
-            urls,
-            config.rag_path,
-            embedding_function,
-            refresh=True,
-            max_pages_per_source=config.rag_max_pages,
-        )
-    else:
-        collection = _get_collection(config.rag_path, embedding_function)
-        if collection.count() == 0:
+    """Liefert RAG-Kontext für einen Review-Lauf — oder eine leere Liste, wenn
+    irgendetwas im RAG-Stack ausfällt (z.B. Embedding-API 500): RAG ist eine
+    Anreicherung und darf einen Review niemals abbrechen."""
+    try:
+        embedding_function = get_embedding_function(config)
+        urls = ensure_doc_urls(config.rag_doc_urls)
+        if refresh:
             index_documents(
                 urls,
                 config.rag_path,
                 embedding_function,
-                refresh=False,
+                refresh=True,
                 max_pages_per_source=config.rag_max_pages,
             )
+        else:
+            collection = _get_collection(config.rag_path, embedding_function)
+            if collection.count() == 0:
+                index_documents(
+                    urls,
+                    config.rag_path,
+                    embedding_function,
+                    refresh=False,
+                    max_pages_per_source=config.rag_max_pages,
+                )
 
-    # Agentisches Sicherheitsnetz: Fehlt zum erkannten PR-Thema jede Quelle im
-    # Index (vergessene URL, fehlgeschlagener Fetch beim Refresh), wird sie
-    # jetzt on-demand nachindexiert, bevor abgefragt wird.
-    ensure_topic_sources(pr_data, ci_findings, config, embedding_function)
+        # Agentisches Sicherheitsnetz: Fehlt zum erkannten PR-Thema jede Quelle im
+        # Index (vergessene URL, fehlgeschlagener Fetch beim Refresh), wird sie
+        # jetzt on-demand nachindexiert, bevor abgefragt wird.
+        ensure_topic_sources(pr_data, ci_findings, config, embedding_function)
 
-    query = build_query(pr_data, ci_findings, copilot_comments)
-    return retrieve_context(
-        query,
-        config.rag_path,
-        config.rag_top_k,
-        embedding_function=embedding_function,
-        max_distance=config.rag_max_distance,
-    )
+        query = build_query(pr_data, ci_findings, copilot_comments)
+        return retrieve_context(
+            query,
+            config.rag_path,
+            config.rag_top_k,
+            embedding_function=embedding_function,
+            max_distance=config.rag_max_distance,
+        )
+    except Exception as exc:  # noqa: BLE001 — Review läuft ohne RAG weiter
+        logger.warning("RAG-Kontext übersprungen (%s) — Review läuft ohne Quellen.", exc)
+        return []

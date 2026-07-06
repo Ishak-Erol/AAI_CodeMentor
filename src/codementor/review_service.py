@@ -14,6 +14,7 @@ from codementor.db.repository import (
     save_learning_points,
     save_rag_citations,
 )
+from codementor.llm import BaseLLMClient
 from codementor.models import LearningPoint, parse_reflection_decision
 from codementor.testat import generate_testat
 
@@ -39,6 +40,7 @@ def persist_review_run(
     pr_number: int,
     title: str,
     final_state: dict[str, Any],
+    llm: BaseLLMClient | None = None,
 ) -> ReviewThread:
     init_db(get_engine(get_config().db_path))
     pull_request = get_or_create_pull_request(owner, repo, pr_number, title)
@@ -66,6 +68,8 @@ def persist_review_run(
     save_learning_points(thread.id, learning_points)
 
     if any(point.kind == "testat_suggestion" for point in learning_points):
-        generate_testat(thread.id)
+        # llm durchreichen — sonst generiert das Testat mit dem Mock-Client
+        # und fällt immer auf die Schablonen-Fragen zurück.
+        generate_testat(thread.id, llm=llm)
 
     return thread

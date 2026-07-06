@@ -45,7 +45,9 @@ async def trigger_testat(request: Request, thread_id: int) -> HTMLResponse:
     if thread is None:
         raise HTTPException(status_code=404, detail=f"Thread {thread_id} not found")
 
-    testat = generate_testat(thread_id)
+    config = get_config()
+    llm_client = get_llm_client(config, config.llm_enabled)
+    testat = generate_testat(thread_id, llm=llm_client)
     return templates.TemplateResponse(
         request,
         "_testat_body.html",

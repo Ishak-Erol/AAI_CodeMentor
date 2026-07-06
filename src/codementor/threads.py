@@ -48,14 +48,18 @@ def _retrieve_rag_results(query: str) -> list[dict[str, Any]]:
     config = get_config()
     if not config.rag_enabled or not query:
         return []
-    embedding_function = get_embedding_function(config)
-    return retrieve_context(
-        query=query,
-        persist_dir=config.rag_path,
-        top_k=2,
-        embedding_function=embedding_function,
-        max_distance=config.rag_max_distance,
-    )
+    try:
+        embedding_function = get_embedding_function(config)
+        return retrieve_context(
+            query=query,
+            persist_dir=config.rag_path,
+            top_k=2,
+            embedding_function=embedding_function,
+            max_distance=config.rag_max_distance,
+        )
+    except Exception as exc:  # noqa: BLE001 — RAG-Ausfall darf den Chat nie brechen
+        logger.warning("Chat-RAG übersprungen (%s).", exc)
+        return []
 
 
 def _summarize_rag_results(results: list[dict[str, Any]]) -> str:
