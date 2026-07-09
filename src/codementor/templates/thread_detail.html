@@ -62,6 +62,11 @@
 {% if student_profile and student_profile.seen_concepts %}
 <section class="panel" style="margin-top: 1.5rem;">
     <h3>Dein bisheriger Fortschritt</h3>
+    <div class="lernstand-summary">
+        <span class="chip mastered">{{ student_profile.mastered_concepts | length }} verstanden &#10003;</span>
+        <span class="chip struggling">{{ student_profile.struggling_concepts | length }} noch offen</span>
+        <span class="chip">{{ student_profile.seen_concepts | length }} Konzepte insgesamt</span>
+    </div>
     <div class="progress-badges">
         {% for concept, count in student_profile.seen_concepts.items() %}
         {% if concept in student_profile.mastered_concepts %}

@@ -36,8 +36,15 @@ def _group_citations_by_message(
 @router.get("/threads", response_class=HTMLResponse)
 async def threads_list(request: Request) -> HTMLResponse:
     threads = list_threads()
+    # PR-Titel zur Anzeige: "Thread #17" allein sagt nichts. Ein PR kann mehrere
+    # Threads haben, daher pro pr_id nur einmal nachschlagen.
+    pr_titles: dict[int, str] = {}
+    for thread in threads:
+        if thread.pr_id not in pr_titles:
+            pull_request = get_pull_request(thread.pr_id)
+            pr_titles[thread.pr_id] = pull_request.title if pull_request else ""
     return templates.TemplateResponse(
-        request, "threads_list.html", {"threads": threads}
+        request, "threads_list.html", {"threads": threads, "pr_titles": pr_titles}
     )
 
 

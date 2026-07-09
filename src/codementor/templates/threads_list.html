@@ -8,7 +8,8 @@
     <a href="/threads/{{ thread.id }}" class="thread-card">
         <div class="thread-card-row">
             <div>
-                <span>Thread #{{ thread.id }}</span>
+                <span class="pr-title">{{ pr_titles.get(thread.pr_id) or "Review" }}</span>
+                <span class="thread-no">#{{ thread.id }}</span>
                 <span class="student">{{ thread.student_id }}</span>
             </div>
             <div class="tags">

@@ -1,5 +1,5 @@
 <li class="chat-message role-{{ message.role }}">
-    <span class="role">{{ message.role }}</span>
+    <span class="role">{% if message.role == "mentor" %}&#127891; Mentor{% else %}&#128100; Du{% endif %}</span>
     <p>{{ message.content }}</p>
     {% set message_citations = citations_by_message.get(message.id) if citations_by_message else None %}
     {% if message_citations %}
