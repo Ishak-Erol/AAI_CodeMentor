@@ -204,12 +204,6 @@ button {
 }
 button:hover { background: var(--accent-dark); }
 
-.github-fields { display: none; margin-top: 0.5rem; }
-.mode-toggle:has(#mode-github:checked) ~ .github-fields { display: block; }
-
-.mode-toggle { display: flex; gap: 1.1rem; align-items: center; font-size: 0.92rem; }
-.mode-toggle label { display: inline-flex; align-items: center; gap: 0.35rem; margin: 0; color: var(--text); }
-
 .htmx-indicator { display: none; }
 .htmx-request .htmx-indicator { display: inline; }
 

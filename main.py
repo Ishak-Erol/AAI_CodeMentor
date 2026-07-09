@@ -20,7 +20,6 @@ from codementor.graph import build_review_graph
 from codementor.github.client import GitHubClient, GitHubClientError
 from codementor.github.copilot import extract_review_comments as extract_copilot_comments
 from codementor.llm import LLMClientError
-from codementor.mock_loader import load_mock_review_state
 from codementor.models import parse_reflection_decision
 from codementor.rag import get_rag_context
 from codementor.rag.embeddings import get_embedding_function
@@ -34,40 +33,6 @@ from codementor.tools.github_tools import get_pr_data
 
 def _json_default(value: Any) -> str:
     return str(value)
-
-
-def run_mock(
-    llm_client,
-    rag_enabled: bool = False,
-    rag_refresh: bool = False,
-) -> dict[str, Any]:
-    config = get_config()
-    state = load_mock_review_state()
-    if rag_enabled:
-        rag_context = get_rag_context(
-            state["pr_data"],
-            state["ci_findings"],
-            state["copilot_comments"],
-            config,
-            refresh=rag_refresh,
-        )
-        state["rag_context"] = rag_context
-    state = sync_learning_context(state)
-    graph = build_review_graph(llm=llm_client)
-    final_state = graph.invoke(state)
-    result = dict(final_state)
-
-    pr_metadata = result["pr_data"].get("metadata", {})
-    thread = persist_review_run(
-        owner="mock",
-        repo="mock",
-        pr_number=0,
-        title=pr_metadata.get("title", ""),
-        final_state=result,
-        llm=llm_client,
-    )
-    result["thread_id"] = thread.id
-    return result
 
 
 def run_github(
@@ -156,9 +121,12 @@ def main() -> int:
     )
     parser.add_argument(
         "--mode",
-        default="mock",
-        choices=["mock", "github"],
-        help="Execution mode. Use github for live GitHub PR analysis.",
+        default="github",
+        choices=["github"],
+        help=(
+            "Es gibt nur noch den Live-Modus gegen echte GitHub-PRs "
+            "(der frühere Mock-Modus wurde entfernt)."
+        ),
     )
     parser.add_argument("--owner", help="GitHub owner or organization.")
     parser.add_argument("--repo", help="GitHub repository name.")
@@ -215,35 +183,27 @@ def main() -> int:
         print(f"LLM error: {exc}")
         return 2
 
-    if args.mode == "mock":
-        final_state = run_mock(
+    if not (args.owner and args.repo and args.pr):
+        print("Error: --mode github requires --owner, --repo, and --pr.")
+        return 2
+    try:
+        final_state = run_github(
+            args.owner,
+            args.repo,
+            args.pr,
             llm_client=llm_client,
             rag_enabled=rag_enabled,
             rag_refresh=args.rag_refresh,
         )
-    else:
-        if not (args.owner and args.repo and args.pr):
-            print("Error: --mode github requires --owner, --repo, and --pr.")
-            return 2
-        try:
-            final_state = run_github(
-                args.owner,
-                args.repo,
-                args.pr,
-                llm_client=llm_client,
-                rag_enabled=rag_enabled,
-                rag_refresh=args.rag_refresh,
-            )
-        except GitHubClientError as exc:
-            print(f"GitHub error: {exc}")
-            return 2
-    
+    except GitHubClientError as exc:
+        print(f"GitHub error: {exc}")
+        return 2
+
     decision = parse_reflection_decision(final_state["reflection_decision"]) # ergebnis von reflection agent
-    # learning points sind array 
+    # learning points sind array
     learning_points = final_state.get("learning_points", [])
 
-    mode_label = "mock" if args.mode == "mock" else "github"
-    print(f"Team CodeMentor Sprint 2 {mode_label} run completed.")
+    print("Team CodeMentor github run completed.")
     print(
         "Summary: "
         f"primary_issue={decision.primary_issue}, "

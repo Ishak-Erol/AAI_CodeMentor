@@ -114,7 +114,12 @@ def _extract_message_content(payload: dict[str, Any]) -> str:
 
 
 class MockLLMClient(BaseLLMClient):
-    """Deterministic offline LLM client for Sprint 1 tests and demos."""
+    """Deterministischer Offline-Client — AUSSCHLIESSLICH Test-Fixture.
+
+    Der Mock-Modus als Produkt-Feature wurde entfernt; Reviews laufen nur noch
+    live gegen echte GitHub-PRs mit echtem LLM. Diese Klasse existiert weiter,
+    damit die automatisierten Tests (und die `llm=None`-Defaults der Agenten)
+    offline und deterministisch laufen können."""
 
     def generate(self, prompt: str) -> str:
         lowered = prompt.lower()
