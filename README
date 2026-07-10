@@ -1,0 +1,411 @@
+# CodeMentor
+
+> **Ein agentisches Multi-Agent-System zur didaktischen Analyse von GitHub Pull Requests**
+
+CodeMentor unterstützt Studierende und Junior-Entwickler dabei, aus ihren eigenen Pull Requests zu lernen. Das System kombiniert mehrere spezialisierte LLM-Agenten, GitHub-Analysen, CI-Ergebnisse und Retrieval-Augmented Generation (RAG), um individuelles, lernorientiertes Feedback zu erzeugen.
+
+Im Gegensatz zu klassischen Code-Review-Assistenten bewertet CodeMentor Pull Requests nicht nur technisch, sondern begleitet den gesamten Lernprozess über mehrere Reviews hinweg. Dazu speichert das System den Lernfortschritt, beantwortet Rückfragen, erstellt Mini-Testate und passt zukünftiges Feedback an den individuellen Wissensstand an.
+
+---
+
+# Features
+
+## Multi-Agent-System
+
+CodeMentor verwendet mehrere spezialisierte Agenten, die über LangGraph orchestriert werden.
+
+* Reflection Agent
+* Development Mentor Agent
+* Learning Agent
+* Praise Agent
+
+Der Reflection Agent entscheidet dynamisch, welcher Agent als nächstes ausgeführt wird.
+
+---
+
+## GitHub-Integration
+
+Analyse echter Pull Requests über die GitHub REST API.
+
+Unterstützt werden unter anderem:
+
+* Pull Requests
+* geänderte Dateien
+* Review-Kommentare
+* GitHub Copilot Reviews
+* GitHub Actions Artefakte
+
+---
+
+## CI-Auswertung
+
+CodeMentor verarbeitet automatisch Ergebnisse aus
+
+* Ruff
+* mypy
+* pytest
+
+Die Findings werden vereinheitlicht und in didaktisches Feedback übersetzt.
+
+---
+
+## Retrieval-Augmented Generation (RAG)
+
+CodeMentor verwendet ChromaDB als Vektordatenbank.
+
+Aktuell werden unter anderem folgende Dokumentationen indexiert:
+
+* Python
+* Ruff
+* mypy
+* pytest
+
+Bei unbekannten Themen kann das System fehlende Dokumentationen automatisch nachindexieren.
+
+---
+
+## Lernorientiertes Feedback
+
+Der Mentor erklärt nicht nur Fehler, sondern
+
+* stellt sokratische Fragen,
+* erklärt Zusammenhänge,
+* verweist auf Dokumentation,
+* passt den Schwierigkeitsgrad an.
+
+---
+
+## Persistenter Lernfortschritt
+
+Alle Informationen werden dauerhaft gespeichert.
+
+Dazu gehören
+
+* Reviews
+* Threads
+* Lernpunkte
+* Mini-Testate
+* Chatverlauf
+* RAG-Zitate
+* Verständnisnachweise
+
+Dadurch entsteht ein langfristiges Lernprofil pro Studierendem.
+
+---
+
+## Browser-Oberfläche
+
+Die Anwendung besitzt eine vollständig lokale Weboberfläche auf Basis von
+
+* FastAPI
+* Jinja2
+* HTMX
+
+Es wird kein JavaScript-Buildsystem benötigt.
+
+---
+
+# Architektur
+
+```text
+                    Browser (HTMX)
+
+                           │
+
+                    FastAPI Backend
+
+                           │
+
+                 LangGraph StateGraph
+
+                           │
+
+              Reflection Agent (LLM)
+
+        ┌────────────┼─────────────┐
+
+        ▼            ▼             ▼
+
+  Dev Mentor     Learning      Praise
+      Agent         Agent        Agent
+
+                           │
+
+                   SQLite + SQLModel
+
+                           │
+
+                  GitHub + ChromaDB
+```
+
+---
+
+# Agentenübersicht
+
+## Reflection Agent
+
+Analysiert
+
+* Pull Request
+* CI-Findings
+* Review-Kommentare
+
+und entscheidet, welcher Agent ausgeführt wird.
+
+---
+
+## Development Mentor Agent
+
+Erzeugt
+
+* Erklärungen
+* Lernziele
+* Mentorfragen
+* RAG-Zitate
+* individuelles Feedback
+
+---
+
+## Learning Agent
+
+Extrahiert
+
+* Konzepte
+* Lernziele
+* Schwierigkeitsgrad
+
+und entscheidet über die Erstellung eines Mini-Testats.
+
+---
+
+## Praise Agent
+
+Falls keine relevanten Probleme gefunden werden, erzeugt der Praise Agent positives Feedback anstelle eines leeren Reviews.
+
+---
+
+# Technologien
+
+| Bereich         | Technologie                       |
+| --------------- | --------------------------------- |
+| Sprache         | Python 3.11+                      |
+| Agenten         | LangGraph                         |
+| Backend         | FastAPI                           |
+| Frontend        | HTMX                              |
+| Datenbank       | SQLite + SQLModel                 |
+| Vektordatenbank | ChromaDB                          |
+| HTTP            | httpx                             |
+| Testing         | pytest                            |
+| LLM             | AcademicCloud (OpenAI-kompatibel) |
+
+---
+
+# Installation
+
+Repository klonen
+
+```bash
+git clone <repository>
+cd codementor
+```
+
+Abhängigkeiten installieren
+
+```bash
+pip install -e ".[dev]"
+```
+
+---
+
+# Konfiguration
+
+Benötigte Umgebungsvariablen
+
+```bash
+export API_KEY=<API_KEY>
+export GITHUB_TOKEN=<TOKEN>
+```
+
+Optionale Einstellungen
+
+```bash
+export CODEMENTOR_LLM_MODEL=devstral-2-123b-instruct-2512
+
+export CODEMENTOR_RAG_ENABLED=1
+
+export CODEMENTOR_EMBED_MODEL=multilingual-e5-large-instruct
+
+export CODEMENTOR_DB_PATH=codementor.db
+
+export CODEMENTOR_RAG_MAX_DISTANCE=0.32
+```
+
+---
+
+# Browser-UI starten
+
+Server starten
+
+```bash
+set -a
+source .env
+set +a
+
+uvicorn server:app --reload
+```
+
+Danach öffnen
+
+```
+http://127.0.0.1:8000/threads
+```
+
+Die Datenbank wird automatisch erstellt.
+
+---
+
+# RAG-Index erstellen
+
+```bash
+set -a
+source .env
+set +a
+
+python main.py refresh-rag
+```
+
+Der Befehl indexiert sämtliche Dokumentationsquellen neu.
+
+---
+
+# GitHub Pull Requests analysieren
+
+## Standard
+
+```bash
+python main.py \
+  --mode github \
+  --owner OWNER \
+  --repo REPOSITORY \
+  --pr NUMBER
+```
+
+---
+
+## Mit RAG
+
+```bash
+python main.py \
+  --mode github \
+  --owner OWNER \
+  --repo REPOSITORY \
+  --pr NUMBER \
+  --rag
+```
+
+---
+
+## Vollständige Analyse
+
+```bash
+python main.py \
+  --mode github \
+  --owner OWNER \
+  --repo REPOSITORY \
+  --pr NUMBER \
+  --rag \
+  --rag-refresh
+```
+
+
+---
+
+# Agentisches Verhalten
+
+CodeMentor trifft eigenständig Entscheidungen über den weiteren Ablauf.
+
+Dazu gehören unter anderem:
+
+* evidenzbasiertes Routing
+* automatische Kontextbeschaffung
+* On-Demand-Nachindexierung von Dokumentation
+* Selbstprüfung erzeugter Antworten
+* adaptive Lernstrategie anhand des bisherigen Lernfortschritts
+
+Dadurch entsteht ein agentisches Verhalten, ohne dass alle Entscheidungen vom LLM getroffen werden. Faktenbasierte Entscheidungen erfolgen deterministisch im Code.
+
+---
+
+# Lernprozess
+
+Der Lernkreislauf besteht aus mehreren Schritten.
+
+1. Pull Request analysieren
+2. individuelles Feedback erzeugen
+3. Rückfragen beantworten
+4. Verständnis erkennen
+5. Lernprofil aktualisieren
+6. Mini-Testat erzeugen
+7. Testat bewerten
+8. zukünftiges Feedback personalisieren
+
+Dadurch entwickelt sich CodeMentor von einem einfachen Review-Tool zu einem langfristigen Lernbegleiter.
+
+---
+
+# Demo-Repository
+
+Zur Demonstration von CodeMentor steht ein separates Beispielprojekt zur Verfügung:
+
+> **codementor-demo-target**
+
+Das Repository enthält einen einfachen Taschenrechner, dessen Pull Requests bewusst typische Anfängerfehler enthalten. Jeder Pull Request demonstriert einen bestimmten Analysefall und eignet sich für Live-Demos oder automatisierte Tests.
+
+## Demo-Szenarien
+
+| Pull Request | Branch | Szenario | Erwartetes Ergebnis |
+|--------------|--------|----------|---------------------|
+| #1 | `feature/divide` | Fehlender Edge Case (Division durch Null) | pytest schlägt fehl |
+| #2 | `feature/parse-age` | Optional-Rückgabe ohne `None`-Prüfung | mypy meldet Typfehler |
+| #3 | `chore/statistik` | Unbenutzter Import und `== None` | Ruff meldet Style-Probleme |
+| #4 | `refactor/formel` | Schlechte Lesbarkeit | Menschlicher Review-Kommentar |
+| #5 | `cleanup/remove-clamp` | Entfernte Funktion mit vergessenem Aufrufer | pytest, mypy und Ruff; Demonstration der automatischen Kontextbeschaffung |
+
+## Continuous Integration
+
+Für jeden Pull Request wird automatisch eine GitHub Actions Pipeline ausgeführt.
+
+Dabei werden
+
+- Ruff
+- mypy
+- pytest
+
+ausgeführt und anschließend als Artefakt **`codementor-analysis`** gespeichert.
+
+Dieses Artefakt wird von CodeMentor automatisch heruntergeladen und analysiert.
+
+## Analyse eines Demo-PRs
+
+```bash
+python main.py \
+  --mode github \
+  --owner Ishak-Erol \
+  --repo codementor-demo-target \
+  --pr 1
+```
+
+## Zweck des Demo-Repositories
+
+Das Beispielprojekt dient ausschließlich Demonstrations- und Testzwecken.
+
+Es ermöglicht reproduzierbare Szenarien für
+
+- pytest-Fehler
+- mypy-Typfehler
+- Ruff-Regelverletzungen
+- menschliche Review-Kommentare
+- automatische Kontextbeschaffung bei entfernten Funktionen
+- RAG-gestützte Erklärungen
+- den vollständigen CodeMentor-Lernkreislauf
+

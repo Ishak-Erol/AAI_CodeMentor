@@ -499,7 +499,7 @@ def run_praise_agent(state: ReviewState, llm: BaseLLMClient | None = None) -> st
         )
     return "\n\n".join(
         [
-            "## ✅ Review ohne Beanstandungen",
+            "## ✅ Alles sauber",
             f"**Betroffene Dateien:** `{_format_file_focus(state)}` | "
             f"**CI-Status:** `{_format_ci_focus(state)}`",
             guidance,
