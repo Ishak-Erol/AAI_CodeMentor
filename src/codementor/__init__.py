@@ -1,9 +1,9 @@
-"""Team CodeMentor Sprint 1 package."""
+"""CodeMentor — agentisches Multi-Agent-System zur didaktischen Analyse von
+GitHub Pull Requests."""
 
 __all__ = [
     "graph",
     "llm",
-    "mock_loader",
     "models",
     "state",
 ]

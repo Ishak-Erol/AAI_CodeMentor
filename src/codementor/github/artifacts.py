@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import io
 import zipfile
-from typing import Iterable
+from collections.abc import Iterable
 
 from codementor.github.client import GitHubClient, GitHubClientError
 

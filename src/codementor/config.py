@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import os
-
+from dataclasses import dataclass
 
 DEFAULT_COPILOT_ALLOWLIST = ["copilot", "github-copilot[bot]"]
 DEFAULT_API_BASE_URL = "https://api.github.com"

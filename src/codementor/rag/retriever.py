@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Iterable
+from typing import Any
 
 from codementor.config import AppConfig
-from codementor.rag.embeddings import get_embedding_function, SimpleHashEmbeddingFunction
+from codementor.rag.embeddings import SimpleHashEmbeddingFunction, get_embedding_function
 from codementor.rag.indexer import index_documents
 from codementor.rag.sources import ensure_doc_urls
 from codementor.rag.topics import ensure_topic_sources
-
 
 logger = logging.getLogger(__name__)
 

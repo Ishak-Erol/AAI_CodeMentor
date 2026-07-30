@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import main as main_module
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse
 
+import main as main_module
 from codementor.api.dependencies import get_llm_client
 from codementor.api.templating import templates
 from codementor.config import get_config

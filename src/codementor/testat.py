@@ -11,7 +11,7 @@ from codementor.db.repository import (
     save_mini_testat,
     save_testat_answer,
 )
-from codementor.llm import BaseLLMClient, MockLLMClient
+from codementor.llm import BaseLLMClient, NullLLMClient
 from codementor.models import extract_json_snippet
 from codementor.student_profile import summarize_student_profile
 
@@ -164,7 +164,7 @@ def generate_testat(
 
     entries = _build_testat_entries(thread.student_id)
 
-    client = llm or MockLLMClient()
+    client = llm or NullLLMClient()
     raw_output = client.generate(build_testat_prompt(entries))
     questions: list[dict[str, Any]] = _parse_testat_questions(raw_output, entries)
 
@@ -221,7 +221,7 @@ def assess_testat_answer(
         raise ValueError(f"Testat {testat.id} has no question at index {question_index}")
     question = questions[question_index]
 
-    client = llm or MockLLMClient()
+    client = llm or NullLLMClient()
     raw_output = client.generate(
         build_assessment_prompt(
             concept=str(question.get("concept", "")),

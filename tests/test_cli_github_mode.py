@@ -6,16 +6,16 @@ import sys
 import main
 
 
-def test_cli_github_mode_requires_args(monkeypatch) -> None:
+def test_cli_requires_owner_repo_and_pr(monkeypatch) -> None:
     monkeypatch.setenv("GITHUB_TOKEN", "token")
-    monkeypatch.setattr(sys, "argv", ["main.py", "--mode", "github"])
+    monkeypatch.setattr(sys, "argv", ["main.py"])
 
     exit_code = main.main()
 
     assert exit_code == 2
 
 
-def test_cli_github_mode_runs_with_mocked_data(monkeypatch, capsys) -> None:
+def test_cli_runs_end_to_end_with_stubbed_github_data(monkeypatch, capsys) -> None:
     monkeypatch.setenv("GITHUB_TOKEN", "token")
 
     def fake_pr_data(**_kwargs):
@@ -48,8 +48,6 @@ def test_cli_github_mode_runs_with_mocked_data(monkeypatch, capsys) -> None:
     monkeypatch.setattr(main, "extract_copilot_comments", lambda *_: [])
     monkeypatch.setattr(sys, "argv", [
         "main.py",
-        "--mode",
-        "github",
         "--owner",
         "acme",
         "--repo",

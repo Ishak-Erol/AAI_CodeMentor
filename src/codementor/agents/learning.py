@@ -6,7 +6,7 @@ from typing import Any, cast
 
 from pydantic import ValidationError
 
-from codementor.llm import BaseLLMClient, MockLLMClient
+from codementor.llm import BaseLLMClient, NullLLMClient
 from codementor.models import LearningPoint, parse_learning_points
 from codementor.state import ReviewState
 from codementor.student_profile import summarize_student_profile
@@ -26,7 +26,8 @@ def build_learning_prompt(
         "existing_concepts": existing_concepts,
     }
     return (
-"Du bist ein Experte für Knowledge-Management. Deine Aufgabe ist es, aus dem Mentor-Feedback konkrete Lernziele zu extrahieren.\n"
+        "Du bist ein Experte für Knowledge-Management. Deine Aufgabe ist es, aus dem "
+        "Mentor-Feedback konkrete Lernziele zu extrahieren.\n"
         "REGELN:\n"
         "- Extrahiere maximal 3 klare Lernpunkte.\n"
         "- 'concept' MUSS ein konkretes technisches Konzept aus den geänderten Dateien, den "
@@ -143,7 +144,7 @@ def run_learning_agent(
     state: ReviewState,
     llm: BaseLLMClient | None = None,
 ) -> list[LearningPoint]:
-    client = llm or MockLLMClient()
+    client = llm or NullLLMClient()
     student_id = state["pr_data"].get("metadata", {}).get("author") or "unknown"
     existing_concepts = list(summarize_student_profile(student_id)["seen_concepts"].keys())
     raw_output = client.generate(build_learning_prompt(state, existing_concepts=existing_concepts))

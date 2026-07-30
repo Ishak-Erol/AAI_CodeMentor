@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import contextmanager
-from functools import lru_cache
-from typing import Iterator
+from functools import cache
 
 from sqlalchemy import Engine
 from sqlmodel import Session, SQLModel, create_engine
 
 
-@lru_cache(maxsize=None)
+@cache
 def get_engine(db_path: str) -> Engine:
     return create_engine(
         f"sqlite:///{db_path}",

@@ -1,12 +1,23 @@
+# Python
 __pycache__/
 *.pyc
-deploy.md
-plan.md
+.venv/
+src/*.egg-info/
+
+# Secrets und lokale Konfiguration
 .env
-*.bin
-*.sqlite3
+
+# Laufzeit-Artefakte (werden bei jedem Review-Lauf neu geschrieben)
+feedback.md
+last_run.json
+
+# Datenbank und RAG-Index
 *.db
+*.sqlite3
+*.bin
 .codementor/
-SPRINT4_TICKETS.md
+
+# Interne Planungsdokumente (nicht Teil der Abgabe)
 deploy.md
 plan.md
+SPRINT4_TICKETS.md

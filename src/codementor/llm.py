@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import json
+import logging
 import time
 from abc import ABC, abstractmethod
-import logging
 from typing import Any
 
 import httpx
@@ -113,109 +112,16 @@ def _extract_message_content(payload: dict[str, Any]) -> str:
     return content
 
 
-class MockLLMClient(BaseLLMClient):
-    """Deterministischer Offline-Client — AUSSCHLIESSLICH Test-Fixture.
+class NullLLMClient(BaseLLMClient):
+    """Antwortet auf jeden Prompt mit einem leeren String.
 
-    Der Mock-Modus als Produkt-Feature wurde entfernt; Reviews laufen nur noch
-    live gegen echte GitHub-PRs mit echtem LLM. Diese Klasse existiert weiter,
-    damit die automatisierten Tests (und die `llm=None`-Defaults der Agenten)
-    offline und deterministisch laufen können."""
+    Wird nur dort eingesetzt, wo kein API-Key konfiguriert ist. Jeder Agent
+    fällt bei leerer Antwort auf sein deterministisches Fallback-Verhalten
+    zurück (siehe `parse_reflection_decision`), sodass die Anwendung ohne
+    Key startet — aber ohne echtes, LLM-gestütztes Feedback.
+
+    Reviews mit echtem Mehrwert brauchen `API_KEY`.
+    """
 
     def generate(self, prompt: str) -> str:
-        lowered = prompt.lower()
-        if "agent: reflection" in lowered:
-            return self._reflection_response(prompt)
-        if "agent: dev_mentor" in lowered:
-            return self._mentor_response()
-        if "agent: learning" in lowered:
-            return self._learning_response(lowered)
         return ""
-
-    def _reflection_response(self, prompt: str) -> str:
-        context = self._extract_context(prompt)
-        ci_findings = context.get("ci_findings", {})
-        copilot_comment_count = int(context.get("copilot_comment_count", 0) or 0)
-
-        if ci_findings.get("pytest"):
-            response = {
-                "primary_issue": "testing",
-                "severity": "high",
-                "needs_copilot_analysis": True,
-                "next_agent": "dev_mentor",
-            }
-        elif ci_findings.get("mypy"):
-            response = {
-                "primary_issue": "typing",
-                "severity": "medium",
-                "needs_copilot_analysis": True,
-                "next_agent": "dev_mentor",
-            }
-        elif ci_findings.get("ruff"):
-            response = {
-                "primary_issue": "code_quality",
-                "severity": "medium",
-                "needs_copilot_analysis": copilot_comment_count > 0,
-                "next_agent": "dev_mentor",
-            }
-        elif copilot_comment_count > 0:
-            response = {
-                "primary_issue": "copilot_review",
-                "severity": "medium",
-                "needs_copilot_analysis": True,
-                "next_agent": "dev_mentor",
-            }
-        else:
-            response = {
-                "primary_issue": "code_quality",
-                "severity": "medium",
-                "needs_copilot_analysis": False,
-                "next_agent": "dev_mentor",
-            }
-        return json.dumps(response)
-
-    def _extract_context(self, prompt: str) -> dict:
-        marker = "CONTEXT:\n"
-        if marker not in prompt:
-            return {}
-        try:
-            return json.loads(prompt.split(marker, maxsplit=1)[1])
-        except json.JSONDecodeError:
-            return {}
-
-    def _mentor_response(self) -> str:
-        return (
-            "Use questions that guide the developer from the failing CI signal "
-            "back to the smallest missing safety net. Avoid giving a full patch."
-        )
-
-    def _learning_response(self, prompt: str) -> str:
-        points = [
-            {
-                "concept": "pytest fixtures",
-                "difficulty": "medium",
-                "reason": (
-                    "Relevant because the PR needs a shared setup around parser "
-                    "inputs and regression cases."
-                ),
-            },
-            {
-                "concept": "mypy Optional handling",
-                "difficulty": "medium",
-                "reason": (
-                    "Relevant because CI reports a path where payload.get can "
-                    "return None before len is called."
-                ),
-            },
-        ]
-        if "copilot" in prompt or "review_parser.py" in prompt:
-            points.append(
-                {
-                    "concept": "triaging Copilot review comments",
-                    "difficulty": "easy",
-                    "reason": (
-                        "Relevant because review comments need to be grouped by "
-                        "risk, testing, typing, and readability before action."
-                    ),
-                }
-            )
-        return json.dumps(points)

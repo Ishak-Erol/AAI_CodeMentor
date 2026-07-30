@@ -6,7 +6,6 @@ from typing import Any
 from codementor.config import AppConfig
 from codementor.rag.indexer import _get_collection, index_documents
 
-
 logger = logging.getLogger(__name__)
 
 # Thema -> maßgebliche Doku-Startseite. Bewusst dieselben URLs wie in

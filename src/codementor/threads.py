@@ -16,11 +16,10 @@ from codementor.db.repository import (
     save_rag_citations,
     save_thread_message,
 )
-from codementor.llm import BaseLLMClient, MockLLMClient
+from codementor.llm import BaseLLMClient, NullLLMClient
 from codementor.models import extract_json_snippet
 from codementor.rag.embeddings import get_embedding_function
 from codementor.rag.retriever import retrieve_context
-
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +163,7 @@ def answer_follow_up(
 
     rag_results = _retrieve_rag_results(_build_rag_query(question, prior_messages))
     rag_summary = _summarize_rag_results(rag_results)
-    client = llm or MockLLMClient()
+    client = llm or NullLLMClient()
     prompt = build_follow_up_prompt(
         original_feedback, prior_messages, question, rag_summary=rag_summary
     )

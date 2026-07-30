@@ -9,7 +9,6 @@ import httpx
 
 from codementor.config import AppConfig
 
-
 logger = logging.getLogger(__name__)
 
 

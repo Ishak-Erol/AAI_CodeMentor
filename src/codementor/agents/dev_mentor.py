@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import json
-from collections import Counter
 from copy import deepcopy
 from typing import Any, cast
 
 from codementor.db.models import ThreadMessage
-from codementor.llm import BaseLLMClient, MockLLMClient
+from codementor.llm import BaseLLMClient, NullLLMClient
 from codementor.models import (
     ClassifiedCopilotComment,
     CopilotCategory,
@@ -16,7 +15,6 @@ from codementor.models import (
 )
 from codementor.state import ReviewState
 from codementor.student_profile import summarize_student_profile
-
 
 CATEGORY_BY_ISSUE: dict[str, set[CopilotCategory]] = {
     "testing": {"testing", "bug_risk"},
@@ -86,7 +84,11 @@ def build_dev_mentor_prompt(
 ) -> str:
     # 1. RAG Kontext sicher extrahieren und für das LLM lesbar machen
     rag_data = state.get("rag_context", [])
-    rag_summary = "\n".join([f"- {d['text']}" for d in rag_data]) if rag_data else "Kein zusätzlicher Kontext verfügbar."
+    rag_summary = (
+        "\n".join([f"- {d['text']}" for d in rag_data])
+        if rag_data
+        else "Kein zusätzlicher Kontext verfügbar."
+    )
 
     # 2. Lernstand aus dem Studierendenprofil ableiten. Wichtig: "mehrfach gesehen"
     # heißt NICHT "verstanden" — nur bestandene Testat-Antworten belegen Verständnis.
@@ -436,7 +438,7 @@ def run_dev_mentor_agent(
     state: ReviewState,
     llm: BaseLLMClient | None = None,
 ) -> tuple[str, list[ClassifiedCopilotComment]]:
-    client = llm or MockLLMClient()
+    client = llm or NullLLMClient()
     decision = parse_reflection_decision(state["reflection_decision"])
     classified = classify_copilot_comments(state["copilot_comments"], decision)
     student_id = state["pr_data"].get("metadata", {}).get("author") or "unknown"
@@ -490,7 +492,7 @@ def build_praise_prompt(state: ReviewState) -> str:
 def run_praise_agent(state: ReviewState, llm: BaseLLMClient | None = None) -> str:
     """Lernen am positiven Beispiel: Wenn Reflection 'end' entscheidet (sauberer PR),
     bekommt der Studierende eine kurze Würdigung statt eines leeren Threads."""
-    client = llm or MockLLMClient()
+    client = llm or NullLLMClient()
     guidance = client.generate(build_praise_prompt(state)).strip()
     if not guidance:
         guidance = (

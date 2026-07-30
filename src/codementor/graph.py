@@ -9,7 +9,7 @@ from codementor.agents.context_processor import analyze_context
 from codementor.agents.dev_mentor import dev_mentor_agent_node, praise_agent_node
 from codementor.agents.learning import learning_agent_node
 from codementor.agents.reflection import reflection_agent_node
-from codementor.llm import BaseLLMClient, MockLLMClient
+from codementor.llm import BaseLLMClient, NullLLMClient
 from codementor.models import parse_reflection_decision
 from codementor.state import ReviewState
 
@@ -46,7 +46,7 @@ def route_after_dev_mentor(state: ReviewState) -> str:
 
 
 def build_review_graph(llm: BaseLLMClient | None = None):
-    client = llm or MockLLMClient()
+    client = llm or NullLLMClient()
     graph = StateGraph(ReviewState)
     graph.add_node("orchestrator", orchestrator_node)
     graph.add_node("reflection_agent", reflection_agent_node(client))

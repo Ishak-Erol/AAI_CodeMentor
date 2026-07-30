@@ -4,7 +4,7 @@ import json
 from copy import deepcopy
 from typing import cast
 
-from codementor.llm import BaseLLMClient, MockLLMClient
+from codementor.llm import BaseLLMClient, NullLLMClient
 from codementor.models import ReflectionDecision, parse_reflection_decision
 from codementor.state import ReviewState
 
@@ -20,16 +20,21 @@ def build_reflection_prompt(state: ReviewState) -> str:
     return (
         "Du bist ein Senior-Architekt, der Pull-Requests auf Architektur-Risiken und Komplexität prüft.\n\n"
         "🚨 STRIKTE PRIORITÄTS-REGEL (CRITICAL):\n"
-        "Wenn alle CI-Checks (pytest, ruff, mypy) vollständig GRÜN (leer) sind und NUR Kommentare, Docstrings oder Typos hinzugefügt/geändert wurden, MUSS der nächste Agent 'end' sein! Erzeuge kein unnötiges Rauschen, wenn der Code funktional korrekt und sauber ist.\n\n"
+        "Wenn alle CI-Checks (pytest, ruff, mypy) vollständig GRÜN (leer) sind und NUR "
+        "Kommentare, Docstrings oder Typos hinzugefügt/geändert wurden, MUSS der nächste "
+        "Agent 'end' sein! Erzeuge kein unnötiges Rauschen, wenn der Code funktional "
+        "korrekt und sauber ist.\n\n"
         "DEINE AUFGABE:\n"
-        "1. Analysiere das primary_issue und severity (Low, Medium, High) basierend auf den CI-Findings und Code-Änderungen.\n"
+        "1. Analysiere das primary_issue und severity (Low, Medium, High) basierend auf "
+        "den CI-Findings und Code-Änderungen.\n"
         "2. Wähle den nächsten Agenten basierend auf diesen STRIKTEN KRITERIEN:\n\n"
         "PFAD 'dev_mentor':\n"
         "- Komplexe Logik geändert (Algorithmen, Transaktionen).\n"
         "- Kritische Code Smells, handfeste Bugs oder echte Architekturverstöße erkennbar.\n"
         "- CI-Fehler sind schwer zu interpretieren und erfordern Refactoring.\n\n"
         "PFAD 'learning':\n"
-        "- Code ist funktional korrekt und CI ist grün, aber es gibt unsaubere Idiomatik oder leicht redundante Kommentare (Meckern auf hohem Niveau).\n"
+        "- Code ist funktional korrekt und CI ist grün, aber es gibt unsaubere Idiomatik "
+        "oder leicht redundante Kommentare (Meckern auf hohem Niveau).\n"
         "- Nur kleine Best-Practice-Tipps nötig.\n\n"
         "PFAD 'end':\n"
         "- PR-Daten zeigen NUR triviale Änderungen (Typos, reine Dokumentation, Kommentare).\n"
@@ -37,7 +42,8 @@ def build_reflection_prompt(state: ReviewState) -> str:
         "- Jedes weitere Eingreifen wäre reine Zeitverschwendung.\n\n"
         "FORMAT:\n"
         "Antworte AUSSCHLIESSLICH als JSON:\n"
-        "{\"primary_issue\": str, \"severity\": str, \"next_agent\": \"dev_mentor\"|\"learning\"|\"end\", \"reasoning\": str}\n\n"
+        '{"primary_issue": str, "severity": str, '
+        '"next_agent": "dev_mentor"|"learning"|"end", "reasoning": str}\n\n'
         f"CONTEXT:\n{json.dumps(payload, sort_keys=True)}"
     )
 
@@ -92,7 +98,7 @@ def run_reflection_agent(
         )
 
     # Normaler LLM-Pfad für echte Code-Änderungen
-    client = llm or MockLLMClient()
+    client = llm or NullLLMClient()
     raw_output = client.generate(build_reflection_prompt(state))
     decision = parse_reflection_decision(raw_output)
     # has_concrete_evidence wird immer deterministisch überschrieben, unabhängig

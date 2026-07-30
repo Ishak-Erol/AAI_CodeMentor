@@ -16,9 +16,9 @@ from codementor.api.dependencies import get_llm_client
 from codementor.config import get_config
 from codementor.context_gatherer import gather_context
 from codementor.db.engine import get_engine, init_db
-from codementor.graph import build_review_graph
 from codementor.github.client import GitHubClient, GitHubClientError
 from codementor.github.copilot import extract_review_comments as extract_copilot_comments
+from codementor.graph import build_review_graph
 from codementor.llm import LLMClientError
 from codementor.models import parse_reflection_decision
 from codementor.rag import get_rag_context
@@ -45,14 +45,13 @@ def run_github(
 ) -> dict[str, Any]:
     config = get_config()
     if not config.github_token:
-        raise GitHubClientError("GITHUB_TOKEN is required for --mode github.")
+        raise GitHubClientError("GITHUB_TOKEN is required to analyse a pull request.")
 
     client = GitHubClient(
         token=config.github_token,
         base_url=config.github_api_base_url,
     )
     pr_payload = get_pr_data(
-        mode="github",
         owner=owner,
         repo=repo,
         pr_number=pr_number,
@@ -69,7 +68,6 @@ def run_github(
     )
     head_sha = pr_data.get("metadata", {}).get("head_sha")
     ci_findings = get_ci_results(
-        mode="github",
         owner=owner,
         repo=repo,
         pr_number=pr_number,
@@ -108,7 +106,12 @@ def run_github(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Team CodeMentor Sprint 2 CLI")
+    parser = argparse.ArgumentParser(
+        description=(
+            "CodeMentor CLI — analysiert einen GitHub Pull Request und erzeugt "
+            "didaktisches Feedback."
+        )
+    )
     parser.add_argument(
         "command",
         nargs="?",
@@ -117,15 +120,6 @@ def main() -> int:
         help=(
             "Optional subcommand. Use 'init-db' to create the SQLite schema and exit, "
             "or 'refresh-rag' to re-index the RAG documentation sources and exit."
-        ),
-    )
-    parser.add_argument(
-        "--mode",
-        default="github",
-        choices=["github"],
-        help=(
-            "Es gibt nur noch den Live-Modus gegen echte GitHub-PRs "
-            "(der frühere Mock-Modus wurde entfernt)."
         ),
     )
     parser.add_argument("--owner", help="GitHub owner or organization.")
@@ -184,7 +178,7 @@ def main() -> int:
         return 2
 
     if not (args.owner and args.repo and args.pr):
-        print("Error: --mode github requires --owner, --repo, and --pr.")
+        print("Error: a review run requires --owner, --repo, and --pr.")
         return 2
     try:
         final_state = run_github(

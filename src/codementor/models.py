@@ -6,7 +6,6 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
-
 PrimaryIssue = Literal["testing", "typing", "code_quality", "copilot_review"]
 Severity = Literal["low", "medium", "high"]
 NextAgent = Literal["dev_mentor", "learning", "end"]

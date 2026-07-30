@@ -4,9 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "team-codementor"
-version = "0.1.0"
-description = "Sprint 1 mock implementation for Team CodeMentor."
+version = "1.0.0"
+description = "Agentisches Multi-Agent-System zur didaktischen Analyse von GitHub Pull Requests."
+readme = "README.md"
 requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "Ishak Erol" }]
+keywords = ["code-review", "multi-agent", "langgraph", "rag", "education"]
 dependencies = [
     "langgraph>=0.2.0",
     "pydantic>=2.7",
@@ -24,7 +28,13 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "pytest-httpx>=0.30",
+    "pytest-json-report>=1.5",
+    "ruff>=0.6",
+    "mypy>=1.11",
 ]
+
+[project.urls]
+Repository = "https://github.com/Ishak-Erol/AAI_CodeMentor"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -33,3 +43,20 @@ where = ["src"]
 addopts = "-q -p no:cacheprovider"
 pythonpath = ["src"]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+exclude = [".venv", ".codementor", "src/codementor/static/vendor"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# main.py erweitert sys.path um src/, bevor die Paket-Imports greifen können.
+"main.py" = ["E402"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+exclude = ["^\\.venv/", "^tests/"]

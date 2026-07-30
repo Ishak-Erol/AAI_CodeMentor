@@ -1,5 +1,7 @@
 from typing import Any
+
 from codementor.state import ReviewState
+
 
 def analyze_context(state: ReviewState) -> dict[str, Any]:
     # 3.1 & 3.4: Problemkontext ableiten und RAG-Trigger setzen

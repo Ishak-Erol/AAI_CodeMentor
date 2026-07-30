@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import base64
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
-
 
 logger = logging.getLogger(__name__)
 

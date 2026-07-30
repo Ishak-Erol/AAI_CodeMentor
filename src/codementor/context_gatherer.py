@@ -6,7 +6,6 @@ from typing import Any
 
 from codementor.github.client import GitHubClient
 
-
 logger = logging.getLogger(__name__)
 
 # Entfernte Python-Funktionsdefinitionen im Diff (Zeilen, die mit "-" beginnen)

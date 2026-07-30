@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import hashlib
 import logging
-from typing import Iterable
+from collections.abc import Iterable
+from dataclasses import dataclass
 
 from codementor.rag.embeddings import get_embedding_function
 from codementor.rag.sources import crawl_source
-
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +43,7 @@ def _chunk_text(text: str, max_chars: int = 500) -> list[str]:
 
 
 def _make_chunk_id(source: str, index: int, text: str) -> str:
-    payload = f"{source}:{index}:{text}".encode("utf-8")
+    payload = f"{source}:{index}:{text}".encode()
     return hashlib.sha1(payload).hexdigest()
 
 

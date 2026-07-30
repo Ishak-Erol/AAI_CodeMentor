@@ -4,36 +4,17 @@ from typing import Any
 
 from codementor.config import AppConfig
 from codementor.github.client import GitHubClient
-from codementor.mock_loader import load_json, MOCKS_DIR
-
-
-def _mock_review_comments() -> list[dict[str, Any]]:
-    payload = load_json(MOCKS_DIR / "mock_copilot_review.json")
-    if isinstance(payload, dict) and "comments" in payload:
-        return payload["comments"]
-    if isinstance(payload, list):
-        return payload
-    return []
 
 
 def get_pr_data(
-    mode: str,
     owner: str | None = None,
     repo: str | None = None,
     pr_number: int | None = None,
     client: GitHubClient | None = None,
     config: AppConfig | None = None,
 ) -> dict[str, Any]:
-    if mode == "mock":
-        pr_data = load_json(MOCKS_DIR / "mock_pr.json")
-        return {
-            "pr_data": pr_data,
-            "reviews": [],
-            "review_comments": _mock_review_comments(),
-        }
-
     if not (owner and repo and pr_number and client):
-        raise ValueError("GitHub mode requires owner, repo, pr number, and client.")
+        raise ValueError("owner, repo, pr number, and client are required.")
 
     pr = client.get_pull_request(owner, repo, pr_number)
     files = client.get_pull_request_files(owner, repo, pr_number)

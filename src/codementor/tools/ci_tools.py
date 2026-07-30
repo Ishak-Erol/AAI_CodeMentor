@@ -9,8 +9,6 @@ from codementor.config import AppConfig
 from codementor.github.actions import get_latest_workflow_run, get_run_artifacts
 from codementor.github.artifacts import download_artifact_payload, extract_artifact_files
 from codementor.github.client import GitHubClient, GitHubClientError
-from codementor.mock_loader import load_json, MOCKS_DIR
-
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +36,6 @@ def _parse_artifacts(raw_files: dict[str, bytes]) -> dict[str, list[dict]]:
 
 
 def get_ci_results(
-    mode: str,
     owner: str | None = None,
     repo: str | None = None,
     pr_number: int | None = None,
@@ -46,14 +43,8 @@ def get_ci_results(
     client: GitHubClient | None = None,
     config: AppConfig | None = None,
 ) -> dict[str, list[dict]]:
-    if mode == "mock":
-        payload = load_json(MOCKS_DIR / "mock_ci_errors.json")
-        if isinstance(payload, dict):
-            return payload
-        raise ValueError("Mock CI payload must be a dictionary.")
-
     if not (owner and repo and client and config):
-        raise ValueError("GitHub mode requires owner, repo, client, and config.")
+        raise ValueError("owner, repo, client, and config are required.")
 
     run = get_latest_workflow_run(
         client,

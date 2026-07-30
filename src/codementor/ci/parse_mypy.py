@@ -4,7 +4,6 @@ import re
 
 from codementor.ci.findings import Finding
 
-
 MYPY_LINE_RE = re.compile(
     r"^(?P<file>[^:]+):(?P<line>\d+):(?:(?P<col>\d+):)?\s*(?P<kind>error|note):\s*(?P<message>.+)$"
 )

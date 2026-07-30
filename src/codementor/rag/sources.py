@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from html.parser import HTMLParser
-from typing import Iterable
 from urllib.parse import urldefrag, urljoin
 
 import httpx
-
 
 logger = logging.getLogger(__name__)
 
