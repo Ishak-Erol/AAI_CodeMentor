@@ -368,7 +368,7 @@ Dadurch entwickelt sich CodeMentor von einem einfachen Review-Tool zu einem lang
 
 Zur Demonstration steht ein separates Beispielprojekt zur Verfügung: **[codementor-demo-target](https://github.com/Ishak-Erol/codementor-demo-target)**.
 
-Das Repository enthält einen einfachen Taschenrechner, dessen Pull Requests bewusst typische Anfängerfehler enthalten. Jeder PR demonstriert einen bestimmten Analysefall und eignet sich für Live-Demos oder automatisierte Tests.
+Das Repository enthält einen einfachen Taschenrechner. **Sieben offene Pull Requests** decken jeweils einen anderen Analysefall ab — von typischen Anfängerfehlern bis zu Fällen, in denen CodeMentor bewusst *kein* Feedback erzeugen soll. Sie eignen sich direkt für Live-Demos.
 
 | Pull Request | Branch | Szenario | Erwartetes Ergebnis |
 | ------------ | ------ | -------- | ------------------- |
@@ -377,13 +377,18 @@ Das Repository enthält einen einfachen Taschenrechner, dessen Pull Requests bew
 | #3 | `chore/statistik` | Unbenutzter Import und `== None` | Ruff meldet Style-Probleme |
 | #4 | `refactor/formel` | Schlechte Lesbarkeit | Menschlicher Review-Kommentar |
 | #5 | `cleanup/remove-clamp` | Entfernte Funktion mit vergessenem Aufrufer | pytest, mypy und Ruff; demonstriert die automatische Kontextbeschaffung |
+| #6 | `docs/kommentare` | Nur erklärende Kommentare ergänzt, CI grün | Die Trivial-Guardrail beendet die Kette (`next_agent="end"`) — kein unnötiges Feedback |
+| #7 | `feature/power` | Neue Funktion **mit** passenden Tests, CI grün | Der Praise Agent erzeugt positives Feedback statt eines leeren Reviews |
+
+Die letzten beiden Fälle sind die interessanten für eine Demo: sie zeigen, dass CodeMentor nicht um jeden Preis etwas zu meckern findet. #6 wird deterministisch im Code abgefangen, #7 läuft über den Praise-Pfad.
 
 Für jeden Pull Request läuft dort automatisch eine GitHub-Actions-Pipeline mit Ruff, mypy und pytest, deren Ergebnisse als Artefakt `codementor-analysis` gespeichert werden. CodeMentor lädt dieses Artefakt automatisch herunter und analysiert es.
 
-Analyse eines Demo-PRs:
+Analyse eines Demo-PRs — `--pr` auf die gewünschte Nummer aus der Tabelle setzen:
 
 ```bash
 python main.py --owner Ishak-Erol --repo codementor-demo-target --pr 1
+python main.py --owner Ishak-Erol --repo codementor-demo-target --pr 6 --rag
 ```
 
 ---
