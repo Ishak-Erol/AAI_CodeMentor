@@ -6,8 +6,13 @@ CodeMentor unterstützt Studierende und Junior-Entwickler dabei, aus ihren eigen
 
 Im Gegensatz zu klassischen Code-Review-Assistenten bewertet CodeMentor Pull Requests nicht nur technisch, sondern begleitet den gesamten Lernprozess über mehrere Reviews hinweg. Dazu speichert das System den Lernfortschritt, beantwortet Rückfragen, erstellt Mini-Testate und passt zukünftiges Feedback an den individuellen Wissensstand an.
 
-<!-- TODO: Screencast (2–3 min) hier einbetten, sobald aufgenommen -->
-<!-- TODO: Link zur Projekt-Website (GitHub Pages) ergänzen -->
+## Demo
+
+**▶ [Screencast ansehen (3:52 min)](https://ishak-erol.github.io/AAI_CodeMentor/#demo)** — zeigt den vollständigen Ablauf: Analyse eines fehlerhaften Pull Requests, eigenständige Kontextbeschaffung und den Fall, in dem CodeMentor bewusst kein Feedback erzeugt.
+
+Alternativ direkt: [docs/demo.mp4](docs/demo.mp4)
+
+<!-- TODO: Link zur Projekt-Website (GitHub Pages) ergänzen, sobald Pages aktiviert ist -->
 
 ---
 

@@ -175,14 +175,6 @@ pre code { background: none; border: 0; padding: 0; font-size: 1em; }
 .example-body .src { font-size: .82rem; color: var(--fg-muted); margin: 0; }
 
 /* Video */
-.video-slot {
-  background: var(--bg-soft); border: 1.5px dashed var(--border);
-  border-radius: var(--radius); padding: 52px 24px; text-align: center; color: var(--fg-muted);
-}
-.video-slot .play {
-  font-size: 2rem; color: var(--accent); display: block; margin-bottom: 10px;
-}
-.video-slot code { font-size: .85em; }
 video { width: 100%; border-radius: var(--radius); border: 1px solid var(--border); display: block; }
 
 
@@ -296,26 +288,14 @@ rechner.py:14: error: Item "None" of "int | None" has
     <p class="muted">Ein Durchlauf durch drei Demo-Pull-Requests: ein harter CI-Fehler, ein Fall
       mit eigenständiger Kontextbeschaffung, und einer, in dem das System bewusst schweigt.</p>
 
-    <!--
-      VIDEO EINBINDEN:
-      docs/demo.mp4 ablegen, dann diesen Block auskommentieren und den <video>-Block darunter
-      aktivieren. Empfohlene Komprimierung:
-      ffmpeg -i roh.mp4 -vcodec libx264 -crf 30 -preset slow -vf "scale=1280:-2" \
-             -acodec aac -b:a 96k docs/demo.mp4
-    -->
-    <div class="video-slot">
-      <span class="play">▶</span>
-      <strong>Screencast folgt</strong><br>
-      <span style="font-size:.9rem">Datei als <code>docs/demo.mp4</code> ablegen und im Quelltext den
-      <code>&lt;video&gt;</code>-Block aktivieren.</span>
-    </div>
-
-    <!--
-    <video controls preload="metadata" poster="demo-poster.jpg">
+    <video controls preload="metadata" playsinline>
       <source src="demo.mp4" type="video/mp4">
-      <a href="demo.mp4">Demo-Video herunterladen</a>
+      Dein Browser kann dieses Video nicht abspielen —
+      <a href="demo.mp4">Datei direkt herunterladen</a>.
     </video>
-    -->
+    <p class="muted" style="font-size:.85rem;margin-top:10px">
+      Screencast, 3:52 min · <a href="demo.mp4" download>Herunterladen</a>
+    </p>
 
     <h3 style="margin-top:38px">Beispiel eines erzeugten Feedbacks</h3>
     <p class="muted" style="font-size:.92rem">Gekürzte Wiedergabe der Ausgabe zu Demo-PR&nbsp;#1
