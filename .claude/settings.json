@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd /c/Users/erol_/GLEIM; cp \"/c/Users/erol_/Downloads/export-1785420492076.mp4\" docs/demo.mp4 && ls -la docs/ && echo \"--- kopiert ---\")",
+      "Bash(../.venv/Scripts/python.exe -)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\erol_\\Downloads"
+    ]
+  }
+}

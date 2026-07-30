@@ -396,6 +396,48 @@ python main.py --owner Ishak-Erol --repo codementor-demo-target --pr 1
 python main.py --owner Ishak-Erol --repo codementor-demo-target --pr 6 --rag
 ```
 
+### Eigenes Demo-Repository einrichten
+
+Um CodeMentor an eigenen Pull Requests auszuprobieren, brauchst du ein Zielrepository unter deinem eigenen Account — denn CodeMentor liest die CI-Ergebnisse aus einem GitHub-Actions-Artefakt, und Actions laufen nur in Repositories, in denen du sie aktivieren kannst.
+
+**1. Demo-Repository forken**
+
+Auf [codementor-demo-target](https://github.com/Ishak-Erol/codementor-demo-target) oben rechts auf **Fork** klicken. Wichtig: das Häkchen bei *„Copy the `main` branch only"* **entfernen**, damit alle sieben Demo-Branches mitkommen.
+
+**2. GitHub Actions im Fork aktivieren**
+
+In deinem Fork auf den Reiter **Actions** gehen und *„I understand my workflows, go ahead and enable them"* bestätigen. GitHub deaktiviert Workflows in Forks standardmäßig.
+
+**3. Lokal klonen (optional, zum Ansehen und Ändern)**
+
+```bash
+git clone https://github.com/DEIN-USERNAME/codementor-demo-target.git
+cd codementor-demo-target
+git branch -a                      # alle Demo-Branches anzeigen
+```
+
+**4. Pull Request öffnen**
+
+Für jeden Demo-Branch einen PR gegen `main` deines Forks aufmachen — entweder über die GitHub-Oberfläche oder direkt:
+
+```bash
+gh pr create --base main --head feature/divide --fill
+```
+
+Die CI-Pipeline startet automatisch. Warte, bis sie durchgelaufen ist, sonst findet CodeMentor kein Artefakt.
+
+**5. Analysieren lassen**
+
+Jetzt mit deinem eigenen Account als `--owner`:
+
+```bash
+python main.py --owner DEIN-USERNAME --repo codementor-demo-target --pr 1 --rag
+```
+
+> **Hinweis:** Ein lokaler Klon ist für die Analyse selbst nicht erforderlich — CodeMentor greift ausschließlich über die GitHub API zu, auch bei der automatischen Kontextbeschaffung. Der Klon aus Schritt 3 ist nur nötig, wenn du eigene Branches und Fehlerfälle ergänzen willst.
+
+Alternativ kannst du natürlich auch ein völlig eigenes Python-Projekt verwenden. Es muss lediglich eine GitHub-Actions-Pipeline besitzen, die Ruff, mypy und pytest ausführt und die Ergebnisse als Artefakt `codementor-analysis` hochlädt — die [ci.yml des Demo-Repositories](https://github.com/Ishak-Erol/codementor-demo-target/blob/main/.github/workflows/ci.yml) lässt sich dafür direkt übernehmen.
+
 ---
 
 ## Troubleshooting

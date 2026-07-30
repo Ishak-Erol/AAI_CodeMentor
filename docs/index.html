@@ -178,9 +178,10 @@ pre code { background: none; border: 0; padding: 0; font-size: 1em; }
 video { width: 100%; border-radius: var(--radius); border: 1px solid var(--border); display: block; }
 
 
-ul.clean { margin: 0; padding-left: 1.15em; color: var(--fg-muted); font-size: .93rem; }
-ul.clean li { margin-bottom: .4em; }
-ul.clean li strong { color: var(--fg); font-weight: 620; }
+.clean { margin: 0; padding-left: 1.25em; color: var(--fg-muted); font-size: .93rem; }
+.clean li { margin-bottom: .5em; }
+.clean li strong { color: var(--fg); font-weight: 620; }
+ol.clean li::marker { color: var(--accent); font-weight: 680; }
 
 footer {
   border-top: 1px solid var(--border); padding: 34px 0 46px;
@@ -440,6 +441,35 @@ uvicorn server:app --reload</code></pre>
 
     <p class="muted">Einen Demo-PR direkt über die Kommandozeile analysieren:</p>
     <pre><code>python main.py --owner Ishak-Erol --repo codementor-demo-target --pr 1 --rag</code></pre>
+
+    <h3 style="margin-top:38px">An eigenen Pull Requests ausprobieren</h3>
+    <p class="muted" style="max-width:44em">
+      Dafür brauchst du ein Zielrepository unter deinem eigenen Account: CodeMentor liest die
+      CI-Ergebnisse aus einem GitHub-Actions-Artefakt, und Actions laufen nur dort, wo du sie
+      aktivieren kannst.
+    </p>
+    <ol class="clean" style="max-width:44em">
+      <li><strong>Forken</strong> —
+        <a href="https://github.com/Ishak-Erol/codementor-demo-target">codementor-demo-target</a>
+        forken und dabei das Häkchen bei <em>„Copy the main branch only"</em> entfernen, damit
+        alle sieben Demo-Branches mitkommen.</li>
+      <li><strong>Actions aktivieren</strong> — im Fork unter <em>Actions</em> bestätigen.
+        GitHub deaktiviert Workflows in Forks standardmäßig.</li>
+      <li><strong>Pull Request öffnen</strong> — einen Demo-Branch gegen <code>main</code> deines
+        Forks, und die CI durchlaufen lassen.</li>
+      <li><strong>Analysieren</strong> — mit deinem Account als <code>--owner</code>.</li>
+    </ol>
+    <pre><code>git clone https://github.com/DEIN-USERNAME/codementor-demo-target.git
+gh pr create --base main --head feature/divide --fill
+
+python main.py --owner DEIN-USERNAME --repo codementor-demo-target --pr 1 --rag</code></pre>
+    <p class="muted" style="font-size:.9rem">
+      Es geht auch mit einem eigenen Python-Projekt — es braucht lediglich eine Actions-Pipeline,
+      die Ruff, mypy und pytest ausführt und die Ergebnisse als Artefakt
+      <code>codementor-analysis</code> hochlädt. Die
+      <a href="https://github.com/Ishak-Erol/codementor-demo-target/blob/main/.github/workflows/ci.yml">ci.yml
+      des Demo-Repositories</a> lässt sich direkt übernehmen.
+    </p>
   </section>
 
   <section id="ausblick">
