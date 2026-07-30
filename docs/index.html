@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CodeMentor — Aus dem eigenen Code lernen</title>
+<meta name="description" content="Ein agentisches Multi-Agent-System, das aus GitHub Pull Requests didaktisches Feedback erzeugt und den Lernfortschritt über viele Reviews begleitet.">
+<meta property="og:title" content="CodeMentor">
+<meta property="og:description" content="Code Review sagt, was falsch ist. CodeMentor erklärt, warum — und merkt sich, was du schon verstanden hast.">
+<meta property="og:type" content="website">
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-soft: #f6f8f8;
+  --bg-card: #ffffff;
+  --fg: #16211f;
+  --fg-muted: #5b6b68;
+  --fg-faint: #8a9a97;
+  --border: #dde5e4;
+  --accent: #0d7d70;
+  --accent-soft: #e6f4f1;
+  --accent-fg: #ffffff;
+  --warn-bg: #fff8e6;
+  --warn-border: #e8d9a8;
+  --radius: 10px;
+  --maxw: 880px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1615;
+    --bg-soft: #141f1e;
+    --bg-card: #16211f;
+    --fg: #e8efee;
+    --fg-muted: #a3b5b2;
+    --fg-faint: #6e8380;
+    --border: #24322f;
+    --accent: #4ecdc0;
+    --accent-soft: #14302c;
+    --accent-fg: #08201d;
+    --warn-bg: #241f10;
+    --warn-border: #4a3f1e;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #ffffff; --bg-soft: #f6f8f8; --bg-card: #ffffff;
+  --fg: #16211f; --fg-muted: #5b6b68; --fg-faint: #8a9a97;
+  --border: #dde5e4; --accent: #0d7d70; --accent-soft: #e6f4f1;
+  --accent-fg: #ffffff; --warn-bg: #fff8e6; --warn-border: #e8d9a8;
+}
+:root[data-theme="dark"] {
+  --bg: #0e1615; --bg-soft: #141f1e; --bg-card: #16211f;
+  --fg: #e8efee; --fg-muted: #a3b5b2; --fg-faint: #6e8380;
+  --border: #24322f; --accent: #4ecdc0; --accent-soft: #14302c;
+  --accent-fg: #08201d; --warn-bg: #241f10; --warn-border: #4a3f1e;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 20px; }
+section { padding: 56px 0; border-top: 1px solid var(--border); }
+section:first-of-type { border-top: 0; }
+
+h1, h2, h3 { line-height: 1.25; letter-spacing: -0.015em; margin: 0 0 .6em; }
+h1 { font-size: clamp(2.1rem, 6vw, 3.1rem); font-weight: 700; }
+h2 { font-size: clamp(1.4rem, 3.6vw, 1.85rem); font-weight: 650; }
+h3 { font-size: 1.05rem; font-weight: 640; }
+p { margin: 0 0 1em; }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+.muted { color: var(--fg-muted); }
+.eyebrow {
+  font-size: .74rem; font-weight: 680; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--accent); margin-bottom: .9em;
+}
+
+/* Header */
+.topbar {
+  position: sticky; top: 0; z-index: 20;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+.topbar .wrap { display: flex; align-items: center; gap: 16px; height: 54px; }
+.brand { font-weight: 700; letter-spacing: -0.02em; margin-right: auto; }
+.brand span { color: var(--accent); }
+.topbar nav { display: flex; gap: 18px; font-size: .9rem; }
+.topbar nav a { color: var(--fg-muted); text-decoration: none; }
+.topbar nav a:hover { color: var(--fg); }
+@media (max-width: 640px) { .topbar nav { display: none; } }
+#theme {
+  background: none; border: 1px solid var(--border); color: var(--fg-muted);
+  border-radius: 6px; width: 30px; height: 30px; cursor: pointer; font-size: .95rem;
+  display: grid; place-items: center; padding: 0;
+}
+#theme:hover { color: var(--fg); border-color: var(--fg-faint); }
+
+/* Hero */
+.hero { padding: 76px 0 60px; }
+.hero p.lead { font-size: 1.2rem; color: var(--fg-muted); max-width: 40em; }
+.hero .tagline { font-size: 1.05rem; color: var(--accent); font-weight: 600; margin-bottom: 1.4em; }
+.cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+.btn {
+  display: inline-block; padding: 10px 18px; border-radius: 8px;
+  font-weight: 600; font-size: .94rem; text-decoration: none;
+  border: 1px solid var(--border); color: var(--fg);
+}
+.btn-primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.btn:hover { border-color: var(--fg-faint); }
+.btn-primary:hover { opacity: .9; border-color: var(--accent); }
+
+/* Generic blocks */
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.g3 { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
+}
+.card h3 { margin-bottom: .4em; }
+.card p { margin: 0; color: var(--fg-muted); font-size: .93rem; }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap: 14px; }
+.stat { background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.stat b { display: block; font-size: 1.7rem; font-weight: 700; letter-spacing: -0.02em; }
+.stat span { font-size: .82rem; color: var(--fg-muted); }
+
+/* Tables */
+.tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--border); border-radius: var(--radius); }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; min-width: 520px; }
+th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { background: var(--bg-soft); font-weight: 650; font-size: .82rem; letter-spacing: .02em; }
+tr:last-child td { border-bottom: 0; }
+td code, th code { font-size: .85em; }
+code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  background: var(--bg-soft); border: 1px solid var(--border);
+  padding: .1em .38em; border-radius: 4px; font-size: .88em;
+}
+pre {
+  background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; overflow-x: auto; font-size: .87rem; line-height: 1.6; margin: 0 0 1em;
+}
+pre code { background: none; border: 0; padding: 0; font-size: 1em; }
+
+/* Architecture diagram */
+.arch { display: grid; gap: 10px; justify-items: center; text-align: center; margin: 8px 0 4px; }
+.node {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 9px 16px; font-size: .88rem; font-weight: 560; min-width: 190px;
+}
+.node.accent { border-color: var(--accent); background: var(--accent-soft); color: var(--fg); }
+.arrow { color: var(--fg-faint); font-size: 1.1rem; line-height: 1; }
+.agents { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.agents .node { min-width: 128px; }
+
+/* Feedback example */
+.example {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+}
+.example-head {
+  background: var(--bg-soft); border-bottom: 1px solid var(--border);
+  padding: 9px 16px; font-size: .78rem; color: var(--fg-muted);
+  display: flex; align-items: center; gap: 8px;
+}
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--fg-faint); opacity: .45; }
+.example-body { padding: 18px; font-size: .93rem; }
+.example-body .label {
+  display: inline-block; font-size: .72rem; font-weight: 680; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--accent); background: var(--accent-soft);
+  padding: 3px 8px; border-radius: 4px; margin-bottom: 12px;
+}
+.example-body blockquote {
+  margin: 0 0 14px; padding-left: 14px; border-left: 3px solid var(--accent);
+  color: var(--fg); font-style: normal;
+}
+.example-body .src { font-size: .82rem; color: var(--fg-muted); margin: 0; }
+
+/* Video */
+.video-slot {
+  background: var(--bg-soft); border: 1.5px dashed var(--border);
+  border-radius: var(--radius); padding: 52px 24px; text-align: center; color: var(--fg-muted);
+}
+.video-slot .play {
+  font-size: 2rem; color: var(--accent); display: block; margin-bottom: 10px;
+}
+.video-slot code { font-size: .85em; }
+video { width: 100%; border-radius: var(--radius); border: 1px solid var(--border); display: block; }
+
+/* Notice */
+.notice {
+  background: var(--warn-bg); border: 1px solid var(--warn-border);
+  border-radius: var(--radius); padding: 16px 18px; font-size: .92rem;
+}
+.notice strong { display: block; margin-bottom: .3em; }
+
+ul.clean { margin: 0; padding-left: 1.15em; color: var(--fg-muted); font-size: .93rem; }
+ul.clean li { margin-bottom: .4em; }
+ul.clean li strong { color: var(--fg); font-weight: 620; }
+
+footer {
+  border-top: 1px solid var(--border); padding: 34px 0 46px;
+  font-size: .88rem; color: var(--fg-muted);
+}
+footer .links { display: flex; flex-wrap: wrap; gap: 18px; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand">Code<span>Mentor</span></div>
+    <nav>
+      <a href="#problem">Problem</a>
+      <a href="#loesung">Lösung</a>
+      <a href="#demo">Demo</a>
+      <a href="#architektur">Architektur</a>
+      <a href="#ausprobieren">Ausprobieren</a>
+    </nav>
+    <button id="theme" title="Hell/Dunkel umschalten" aria-label="Farbschema umschalten">◐</button>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <header class="hero">
+    <h1>Aus dem eigenen Code lernen,<br>nicht nur ihn reparieren.</h1>
+    <p class="tagline">Ein agentisches Multi-Agent-System für didaktische Code Reviews</p>
+    <p class="lead">
+      CodeMentor analysiert GitHub Pull Requests zusammen mit ihren CI-Ergebnissen und erzeugt
+      daraus lernorientiertes Feedback. Es erklärt statt zu patchen, prüft das Verständnis mit
+      Mini-Testaten und passt jedes weitere Review an das an, was der Studierende bereits
+      verstanden hat.
+    </p>
+    <div class="cta">
+      <a class="btn btn-primary" href="#demo">Demo ansehen</a>
+      <a class="btn" href="https://github.com/Ishak-Erol/AAI_CodeMentor">Repository</a>
+      <a class="btn" href="#ausprobieren">Selbst ausprobieren</a>
+    </div>
+  </header>
+
+  <section id="problem">
+    <div class="eyebrow">Das Problem</div>
+    <h2>Code Review sagt, <em>was</em> falsch ist. Nicht <em>warum</em>.</h2>
+    <p class="muted" style="max-width:44em">
+      Ein Studierender öffnet einen Pull Request. Die CI wird rot. Was er bekommt, ist das hier:
+    </p>
+    <pre><code>tests/test_rechner.py::test_divide_by_zero FAILED
+E   ZeroDivisionError: division by zero
+
+rechner.py:14: error: Item "None" of "int | None" has
+    no attribute "__len__"  [union-attr]</code></pre>
+    <p class="muted" style="max-width:44em">
+      Technisch korrekt. Didaktisch wertlos. Und der bequemste Ausweg — der „Apply fix"-Knopf
+      eines KI-Assistenten — ist zugleich der lernfeindlichste: der Fehler verschwindet aus dem
+      Code, aber nicht aus dem Kopf.
+    </p>
+    <div class="grid g3" style="margin-top:26px">
+      <div class="card">
+        <h3>CI-Tools</h3>
+        <p>Liefern Findings, keine Erklärungen. Für Anfänger oft unlesbar.</p>
+      </div>
+      <div class="card">
+        <h3>KI-Assistenten</h3>
+        <p>Liefern fertige Fixes. Man übernimmt sie, ohne sie zu verstehen.</p>
+      </div>
+      <div class="card">
+        <h3>Beide</h3>
+        <p>Vergessen alles. Beim nächsten PR fängt derselbe Fehler von vorne an.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="loesung">
+    <div class="eyebrow">Die Einsicht</div>
+    <h2>Alle Werkzeuge optimieren den Code. Keins den Entwickler.</h2>
+    <p class="muted" style="max-width:44em">
+      Bestehende Tools sind auf den Zustand des <em>Artefakts</em> optimiert. Lernen ist aber ein
+      Prozess über viele Reviews hinweg, kein Ereignis in einem einzelnen. Daraus folgt die
+      zentrale Anforderung: das System braucht ein <strong>Gedächtnis</strong>.
+    </p>
+    <p class="muted" style="max-width:44em">
+      Genau das unterscheidet CodeMentor von „ein LLM über den Diff laufen lassen". Ein
+      einzelner Prompt hat keinen Begriff davon, was dieser Mensch letzte Woche schon verstanden
+      hat.
+    </p>
+
+    <h3 style="margin-top:34px">Der Lernkreislauf</h3>
+    <div class="grid g3" style="margin-top:14px">
+      <div class="card"><h3>1 · Analysieren</h3><p>Pull Request, CI-Findings und Review-Kommentare werden gemeinsam ausgewertet.</p></div>
+      <div class="card"><h3>2 · Erklären</h3><p>Feedback mit Begründung, Doku-Zitat und sokratischer Rückfrage — statt fertiger Lösung.</p></div>
+      <div class="card"><h3>3 · Nachfragen</h3><p>Der Studierende antwortet im Chat. Das System erkennt, ob das Konzept verstanden wurde.</p></div>
+      <div class="card"><h3>4 · Prüfen</h3><p>Ein Mini-Testat verifiziert das Verständnis und wird bewertet.</p></div>
+      <div class="card"><h3>5 · Anpassen</h3><p>Das Lernprofil wird aktualisiert — das nächste Review fällt anders aus.</p></div>
+      <div class="card" style="border-color:var(--accent);background:var(--accent-soft)">
+        <h3>↻ Und von vorn</h3><p>Review Nr. 4 sieht anders aus als Review Nr. 1. Das ist der Punkt.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="demo">
+    <div class="eyebrow">Demo</div>
+    <h2>CodeMentor in Aktion</h2>
+    <p class="muted">Ein Durchlauf durch drei Demo-Pull-Requests: ein harter CI-Fehler, ein Fall
+      mit eigenständiger Kontextbeschaffung, und einer, in dem das System bewusst schweigt.</p>
+
+    <!--
+      VIDEO EINBINDEN:
+      docs/demo.mp4 ablegen, dann diesen Block auskommentieren und den <video>-Block darunter
+      aktivieren. Empfohlene Komprimierung:
+      ffmpeg -i roh.mp4 -vcodec libx264 -crf 30 -preset slow -vf "scale=1280:-2" \
+             -acodec aac -b:a 96k docs/demo.mp4
+    -->
+    <div class="video-slot">
+      <span class="play">▶</span>
+      <strong>Screencast folgt</strong><br>
+      <span style="font-size:.9rem">Datei als <code>docs/demo.mp4</code> ablegen und im Quelltext den
+      <code>&lt;video&gt;</code>-Block aktivieren.</span>
+    </div>
+
+    <!--
+    <video controls preload="metadata" poster="demo-poster.jpg">
+      <source src="demo.mp4" type="video/mp4">
+      <a href="demo.mp4">Demo-Video herunterladen</a>
+    </video>
+    -->
+
+    <h3 style="margin-top:38px">Beispiel eines erzeugten Feedbacks</h3>
+    <p class="muted" style="font-size:.92rem">Gekürzte Wiedergabe der Ausgabe zu Demo-PR&nbsp;#1
+      (<code>feature/divide</code>), in dem der Division-durch-Null-Fall fehlt.</p>
+    <div class="example">
+      <div class="example-head">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span style="margin-left:6px">Mentor-Feedback · Fokus <code>testing</code> · Schweregrad <code>high</code></span>
+      </div>
+      <div class="example-body">
+        <span class="label">Sokratische Frage</span>
+        <blockquote>
+          Dein Test prüft <code>divide(6, 3)</code> und erwartet <code>2.0</code> — das ist der
+          Normalfall. Überleg mal: welchen Wert müsste <code>b</code> haben, damit deine
+          Implementierung nicht mehr definiert ist? Und was soll deine Funktion in dem Fall tun —
+          abstürzen, oder etwas Sinnvolles zurückgeben?
+        </blockquote>
+        <p class="src"><strong>Lernpunkte:</strong> Edge Cases in Tests · Exception-Handling bei
+          Division</p>
+        <p class="src"><strong>Quelle:</strong> docs.pytest.org — <em>Testing exceptions with
+          pytest.raises</em></p>
+      </div>
+    </div>
+
+    <h3 style="margin-top:38px">Die sieben Demo-Szenarien</h3>
+    <p class="muted" style="font-size:.92rem">Im separaten Repository
+      <a href="https://github.com/Ishak-Erol/codementor-demo-target">codementor-demo-target</a>
+      decken sieben Pull Requests je einen anderen Analysefall ab.</p>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>PR</th><th>Szenario</th><th>Ergebnis</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><b>#1</b></td><td>Fehlender Edge Case (Division durch Null)</td><td>pytest schlägt fehl</td></tr>
+          <tr><td><b>#2</b></td><td>Optional-Rückgabe ohne <code>None</code>-Prüfung</td><td>mypy meldet Typfehler</td></tr>
+          <tr><td><b>#3</b></td><td>Unbenutzter Import und <code>== None</code></td><td>Ruff meldet Style-Probleme</td></tr>
+          <tr><td><b>#4</b></td><td>Schlechte Lesbarkeit</td><td>Menschlicher Review-Kommentar</td></tr>
+          <tr><td><b>#5</b></td><td>Entfernte Funktion mit vergessenem Aufrufer</td><td>System beschafft sich den Kontext selbst</td></tr>
+          <tr><td><b>#6</b></td><td>Nur Kommentare ergänzt, CI grün</td><td><b>Kein Feedback</b> — Guardrail greift</td></tr>
+          <tr><td><b>#7</b></td><td>Neue Funktion mit passenden Tests</td><td>Praise Agent lobt statt zu meckern</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted" style="font-size:.92rem;margin-top:14px">
+      Die letzten beiden sind die interessanten: ein System, das <em>immer</em> etwas zu
+      bemängeln findet, erzeugt Rauschen — und Studierende schalten ab.
+    </p>
+  </section>
+
+  <section id="architektur">
+    <div class="eyebrow">Architektur</div>
+    <h2>Vier Agenten, ein Graph</h2>
+    <p class="muted" style="max-width:44em">
+      Orchestriert über LangGraph. Der Reflection Agent entscheidet bei jedem Review neu, welcher
+      Agent als nächstes läuft — nicht jeder Pull Request durchläuft alle Stationen.
+    </p>
+
+    <div class="arch">
+      <div class="node">Browser · HTMX</div>
+      <div class="arrow">↓</div>
+      <div class="node">FastAPI Backend</div>
+      <div class="arrow">↓</div>
+      <div class="node">LangGraph StateGraph</div>
+      <div class="arrow">↓</div>
+      <div class="node accent">Reflection Agent</div>
+      <div class="arrow">↓</div>
+      <div class="agents">
+        <div class="node">Dev-Mentor</div>
+        <div class="node">Learning</div>
+        <div class="node">Praise</div>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="node">SQLite · ChromaDB · GitHub API</div>
+    </div>
+
+    <div class="grid g2" style="margin-top:30px">
+      <div class="card"><h3>Reflection Agent</h3><p>Wertet PR, CI-Findings und Kommentare aus und entscheidet über den weiteren Weg — inklusive der Entscheidung, gar nichts zu tun.</p></div>
+      <div class="card"><h3>Dev-Mentor Agent</h3><p>Erzeugt Erklärungen, Lernziele, sokratische Fragen und belegt sie mit Zitaten aus echter Dokumentation.</p></div>
+      <div class="card"><h3>Learning Agent</h3><p>Extrahiert Konzepte und Schwierigkeitsgrad und entscheidet, wann ein Mini-Testat fällig ist.</p></div>
+      <div class="card"><h3>Praise Agent</h3><p>Erzeugt begründetes positives Feedback, wenn es nichts zu bemängeln gibt — statt eines leeren Reviews.</p></div>
+    </div>
+
+    <h3 style="margin-top:40px">Was „agentisch" hier konkret heißt</h3>
+    <p class="muted" style="max-width:44em">
+      Nicht jede Entscheidung gehört ins Sprachmodell. Faktenfragen werden deterministisch im
+      Code beantwortet, Urteilsfragen vom LLM. Dadurch bleibt das Routing reproduzierbar,
+      unabhängig von Modellgröße und Tagesform.
+    </p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Deterministisch im Code</th><th>Per LLM</th></tr></thead>
+        <tbody>
+          <tr><td>Liegt belastbare Evidenz vor?</td><td>Welches Konzept fehlt hier?</td></tr>
+          <tr><td>Ist die Änderung trivial?</td><td>Wie erkläre ich es didaktisch?</td></tr>
+          <tr><td>Ist die Doku-Quelle relevant genug?</td><td>Welche Frage führt zur Einsicht?</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="margin-top:40px">Das System beschafft sich seine eigene Evidenz</h3>
+    <p class="muted" style="max-width:44em">
+      In Demo-PR&nbsp;#5 wird eine Hilfsfunktion entfernt. Der Diff allein reicht nicht, um
+      daraus konkretes Feedback abzuleiten — also durchsucht das System eigenständig das
+      Repository nach verbliebenen Aufrufern, findet einen, und erklärt dem Studierenden den
+      Zusammenhang, den der Diff nicht zeigt. Fehlt Dokumentation zu einem Thema, wird sie
+      on-demand nachindexiert.
+    </p>
+  </section>
+
+  <section id="technik">
+    <div class="eyebrow">Umsetzung</div>
+    <h2>Technische Entscheidungen</h2>
+
+    <div class="grid g3">
+      <div class="card">
+        <h3>Kalibrierte RAG-Schwelle</h3>
+        <p>Empirisch gemessen: relevante Treffer lagen bei L2-Distanz 0,17–0,25, irrelevante bei
+          0,36–0,43. Schwelle auf 0,32. Lieber ehrlich „keine passende Doku" als eine schwache
+          Quelle zitieren.</p>
+      </div>
+      <div class="card">
+        <h3>Modellwahl nach Schema-Treue</h3>
+        <p>Wechsel auf <code>devstral-2-123b</code>, weil die zuverlässige Einhaltung des
+          JSON-Schemas der Engpass war — nicht die Sprachqualität.</p>
+      </div>
+      <div class="card">
+        <h3>Fehler statt Stille</h3>
+        <p>Drei Retries bei transienten API-Fehlern, danach eine verständliche Meldung in der UI
+          — statt eines leeren Reviews, das nach einem Ergebnis aussieht.</p>
+      </div>
+    </div>
+
+    <div class="stats" style="margin-top:26px">
+      <div class="stat"><b>~5.000</b><span>Zeilen Python</span></div>
+      <div class="stat"><b>21</b><span>Tests, offline lauffähig</span></div>
+      <div class="stat"><b>4</b><span>spezialisierte Agenten</span></div>
+      <div class="stat"><b>7</b><span>Demo-Szenarien</span></div>
+    </div>
+
+    <h3 style="margin-top:34px">Stack</h3>
+    <div class="tablewrap">
+      <table>
+        <tbody>
+          <tr><th>Sprache</th><td>Python 3.11+</td></tr>
+          <tr><th>Agenten</th><td>LangGraph</td></tr>
+          <tr><th>Backend</th><td>FastAPI · Jinja2</td></tr>
+          <tr><th>Frontend</th><td>HTMX — kein JavaScript-Buildsystem</td></tr>
+          <tr><th>Persistenz</th><td>SQLite · SQLModel</td></tr>
+          <tr><th>Vektordatenbank</th><td>ChromaDB</td></tr>
+          <tr><th>LLM</th><td>AcademicCloud (OpenAI-kompatibel)</td></tr>
+          <tr><th>Qualität</th><td>Ruff · mypy · pytest, in CI bei jedem Push</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="ausprobieren">
+    <div class="eyebrow">Ausprobieren</div>
+    <h2>In vier Befehlen lokal starten</h2>
+
+    <div class="notice" style="margin-bottom:20px">
+      <strong>Warum es hier keine öffentliche Instanz gibt</strong>
+      CodeMentor braucht ein Python-Backend und einen persönlichen AcademicCloud-API-Key. Eine
+      öffentlich erreichbare Demo würde auf einem einzelnen fremden Schlüssel laufen — das ist
+      weder tragfähig noch sinnvoll. Der Screencast oben zeigt den vollständigen Ablauf; lokal
+      ist das Projekt in wenigen Minuten lauffähig.
+    </div>
+
+    <pre><code>git clone https://github.com/Ishak-Erol/AAI_CodeMentor.git
+cd AAI_CodeMentor
+pip install -e ".[dev]"
+cp .env.example .env      # API_KEY und GITHUB_TOKEN eintragen
+uvicorn server:app --reload</code></pre>
+    <p class="muted">Dann <code>http://127.0.0.1:8000/threads</code> öffnen. Die Datenbank wird
+      automatisch angelegt. Vollständige Anleitung inklusive PowerShell-Variante im
+      <a href="https://github.com/Ishak-Erol/AAI_CodeMentor#readme">README</a>.</p>
+
+    <p class="muted">Einen Demo-PR direkt über die Kommandozeile analysieren:</p>
+    <pre><code>python main.py --owner Ishak-Erol --repo codementor-demo-target --pr 1 --rag</code></pre>
+  </section>
+
+  <section id="grenzen">
+    <div class="eyebrow">Ehrlichkeit</div>
+    <h2>Was CodeMentor heute nicht kann</h2>
+    <ul class="clean">
+      <li><strong>Kein öffentliches Deployment</strong> — die Anwendung benötigt einen eigenen API-Key.</li>
+      <li><strong>Auf Python zugeschnitten</strong> — die CI-Parser verstehen Ruff, mypy und pytest. Andere Sprachen bräuchten eigene Parser.</li>
+      <li><strong>Didaktische Wirksamkeit nicht evaluiert</strong> — das Konzept ist umgesetzt, aber nicht mit echten Studierenden gemessen.</li>
+      <li><strong>Offene Typfehler im eigenen Code</strong> — mypy meldet noch Findings; Ruff läuft vollständig grün.</li>
+    </ul>
+
+    <h3 style="margin-top:32px">Wohin es gehen könnte</h3>
+    <ul class="clean">
+      <li>Weitere Sprachen über austauschbare CI-Parser</li>
+      <li>Dozenten-Sicht auf den Lernstand einer ganzen Kohorte</li>
+      <li>Evaluation mit echten Studierenden über ein Semester</li>
+    </ul>
+  </section>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="links">
+      <a href="https://github.com/Ishak-Erol/AAI_CodeMentor">Repository</a>
+      <a href="https://github.com/Ishak-Erol/codementor-demo-target">Demo-Repository</a>
+      <a href="https://github.com/Ishak-Erol/AAI_CodeMentor#readme">Dokumentation</a>
+      <!-- Pitch Deck: docs/pitch-deck.pdf ablegen, dann die nächste Zeile einkommentieren.
+           Bis dahin auskommentiert, damit der Link nicht ins Leere zeigt.
+      <a href="pitch-deck.pdf">Pitch Deck (PDF)</a>
+      -->
+    </div>
+    <p style="margin:0">CodeMentor · Ishak Erol · 2026 · <a href="https://github.com/Ishak-Erol/AAI_CodeMentor/blob/main/LICENSE">MIT-Lizenz</a></p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var btn = document.getElementById('theme');
+  var saved = null;
+  try { saved = localStorage.getItem('theme'); } catch (e) {}
+  if (saved) root.setAttribute('data-theme', saved);
+  btn.addEventListener('click', function () {
+    var isDark = root.getAttribute('data-theme') === 'dark' ||
+      (!root.getAttribute('data-theme') &&
+        window.matchMedia('(prefers-color-scheme: dark)').matches);
+    var next = isDark ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('theme', next); } catch (e) {}
+  });
+})();
+</script>
+
+</body>
+</html>
