@@ -2,7 +2,7 @@
 
 > **Ein agentisches Multi-Agent-System zur didaktischen Analyse von GitHub Pull Requests**
 
-**🌐 [Projekt-Website](https://ishak-erol.github.io/AAI_CodeMentor/)** · [Demo-Video](https://ishak-erol.github.io/AAI_CodeMentor/#demo) · [Demo-Repository](https://github.com/Ishak-Erol/codementor-demo-target)
+**🌐 [Projekt-Website](https://ishak-erol.github.io/AAI_CodeMentor/)** · [Demo-Video](https://ishak-erol.github.io/AAI_CodeMentor/#demo) · [Pitch Deck (PDF)](docs/pitch-deck.pdf) · [Demo-Repository](https://github.com/Ishak-Erol/codementor-demo-target)
 
 CodeMentor unterstützt Studierende und Junior-Entwickler dabei, aus ihren eigenen Pull Requests zu lernen. Das System kombiniert mehrere spezialisierte LLM-Agenten, GitHub-Analysen, CI-Ergebnisse und Retrieval-Augmented Generation (RAG), um individuelles, lernorientiertes Feedback zu erzeugen.
 
